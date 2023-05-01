@@ -42,7 +42,7 @@ if __name__ == '__main__':
                                         )
 
             datamodule.setup("fit", fold)
-            study.optimize(lambda trial: objective(trial, datamodule, config.EPOCHS, r, fold), n_trials=TRIALS)
+            study.optimize(lambda trial: objective(trial, datamodule, config.EPOCHS, r, fold), n_trials=config.TRIALS)
             print(f"Best trial for fold {fold}: {study.best_trial.value}")
 
             # Load the model with the best hyperparameters

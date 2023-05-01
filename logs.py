@@ -7,7 +7,6 @@ import pytz
 
 
 def create_log_dir(repetition_index, fold_index):
-    global PARENT_DIR
 
     # Current timestamp
     now = datetime.datetime.now(pytz.timezone('Europe/Zurich')).strftime("%Y-%m-%d_%H-%M")
@@ -15,18 +14,18 @@ def create_log_dir(repetition_index, fold_index):
     # Parent directory
     parent_dir_info = f"{config.DATASET_NAME}_reps_{config.REP}_folds_{config.N_SPLITS}_epochs_{config.EPOCHS}"
 
-    if PARENT_DIR is None:
-        PARENT_DIR = f"{config.MAIN_DIR}logs/{parent_dir_info}_{now}"
-        if not os.path.exists(PARENT_DIR):
-            os.makedirs(PARENT_DIR)
+    if config.PARENT_DIR is None:
+        config.PARENT_DIR = f"{config.MAIN_DIR}logs/{parent_dir_info}_{now}"
+        if not os.path.exists(config.PARENT_DIR):
+            os.makedirs(config.PARENT_DIR)
 
     # Subdirectory for the specific repetition and fold
     if repetition_index is not None and fold_index is not None:
-        sub_dir = f"{PARENT_DIR}/rep_{repetition_index}_fold_{fold_index}"
+        sub_dir = f"{config.PARENT_DIR}/rep_{repetition_index}_fold_{fold_index}"
         if not os.path.exists(sub_dir):
             os.makedirs(sub_dir)
     else:
-        sub_dir = PARENT_DIR
+        sub_dir = config.PARENT_DIR
 
     return sub_dir
 
