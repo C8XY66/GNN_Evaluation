@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchmetrics import Accuracy
-from torch_geometric.nn import GIN, MLP, MessagePassing, global_add_pool,  global_sort_pool
+from torch_geometric.nn import GIN, MLP, MessagePassing, global_add_pool, SortAggregation
 from torch_geometric.utils import add_self_loops, degree
 import pytorch_lightning as pl
 
@@ -64,12 +64,14 @@ class DGCNNConv(MessagePassing):
 class DGCNNModel(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, hidden_channels=32, num_layers=4, dropout=0.5):
         super().__init__()
-        self.dropout = dropout
+        self.dropout = nn.Dropout(dropout)
         self.layers = nn.ModuleList()
         self.layers.append(DGCNNConv(in_channels=in_channels, out_channels=hidden_channels))
         for _ in range(num_layers - 2):
             self.layers.append(DGCNNConv(in_channels=hidden_channels, out_channels=hidden_channels))
         self.layers.append(DGCNNConv(in_channels=hidden_channels, out_channels=1))
+
+        self.sort_aggr = SortAggregation(k=2910) # self.k * self.total_latent_dim
 
         self.conv1D_1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=97, stride=97)
         self.max_pool = nn.MaxPool1d(2, 2)
@@ -83,7 +85,7 @@ class DGCNNModel(nn.Module):
         for layer in self.layers:
             x = layer(x, edge_index)
 
-        x = global_sort_pool(x, batch, k=30)
+        x = self.sort_aggr(x, batch)
         x = x.unsqueeze(1)  # Add channel dimension
 
         x = F.relu(self.conv1D_1(x))
@@ -92,7 +94,7 @@ class DGCNNModel(nn.Module):
         x = x.view(x.size(0), -1)  # Flatten
         x = F.relu(self.fc1(x))
         x = self.dropout(x)
-        x = F.relu(self.fc2(x))
+        x = self.fc2(x)
 
         return x
 
@@ -154,4 +156,3 @@ class GNNModel(pl.LightningModule):
 
     def on_save_checkpoint(self, checkpoint):
         checkpoint["init_args"] = self.hparams
-
