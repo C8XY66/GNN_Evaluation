@@ -1,0 +1,15 @@
+model:
+  - DGCNN
+batch_size:
+  - 50
+learning_rate:
+  - 0.0001
+  - 0.00001
+dropout:
+  - 0.5
+hidden_channels:
+  - 32
+num_layers:
+  - 4
+
+

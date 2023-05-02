@@ -1,10 +1,17 @@
 from model import GNNModel
 
 import os
+import yaml
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
 from optuna.integration import PyTorchLightningPruningCallback
+
+
+def load_config(config_file):
+    with open(config_file, 'r') as file:
+        config = yaml.safe_load(file)
+    return config
 
 
 def create_trainer(log_dir, epochs, pruning_callback=None, testing=False, trial=None):
@@ -42,30 +49,41 @@ def create_trainer(log_dir, epochs, pruning_callback=None, testing=False, trial=
 
 
 def objective(trial, datamodule, log_dir, epochs, model_name):
+    config_file = f"config_{model_name}.yaml"
+    config = load_config(config_file)
+
     # Optimise hyperparameters
-    hidden_channels = trial.suggest_categorical('hidden_channels', [16, 32])
-    batch_size = trial.suggest_categorical('batch_size', [32, 128])
-    dropout = trial.suggest_categorical('dropout', [0.0, 0.5])
+    hyperparameters = {}
+
+    for param, values in config.items():
+        if isinstance(values, list):
+            hyperparameters[param] = trial.suggest_categorical(param, values)
+        else:
+            hyperparameters[param] = values
+
+    # hidden_channels = trial.suggest_categorical('hidden_channels', [16, 32])
+    # batch_size = trial.suggest_categorical('batch_size', [32, 128])
+    # dropout = trial.suggest_categorical('dropout', [0.0, 0.5])
 
     # Model and DataModule
-    datamodule.setup(fold=0, batch_size=batch_size)
+    datamodule.setup(fold=0, batch_size=hyperparameters['batch_size'])
     model = GNNModel(gnn_model_name=model_name,
                      in_channels=datamodule.num_node_features,
                      out_channels=datamodule.num_classes,
-                     hidden_channels=hidden_channels,
-                     dropout=dropout)
+                     hidden_channels=hyperparameters['hidden_channels'],
+                     num_layers=hyperparameters['num_layers'],
+                     dropout=hyperparameters['dropout'],
+                     learning_rate=hyperparameters['learning_rate'])
 
     # Training
     pruning_callback = PyTorchLightningPruningCallback(trial, monitor="val_acc")  # from optuna-pl-integration
-
-    #log_dir = create_log_dir(repetition_index, fold_index)
     trainer = create_trainer(log_dir, epochs=epochs,
                              pruning_callback=pruning_callback,
                              trial=trial)
 
-    hyperparameters = dict(hidden_channels=hidden_channels, batch_size=batch_size, epochs=epochs, dropout=dropout)
+    hyperparameters = dict(hidden_channels=hyperparameters['hidden_channels'], batch_size=hyperparameters['batch_size'],
+                           epochs=epochs, dropout=hyperparameters['dropout'])
     trainer.logger.log_hyperparams(hyperparameters)
-
     trainer.fit(model, datamodule=datamodule)
 
     return trainer.callback_metrics['val_acc'].item()

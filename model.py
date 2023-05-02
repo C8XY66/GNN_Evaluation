@@ -99,7 +99,7 @@ class DGCNNModel(nn.Module):
 
 # General GNN
 class GNNModel(pl.LightningModule):
-    def __init__(self, gnn_model_name, in_channels: int, out_channels: int, hidden_channels: int,
+    def __init__(self, gnn_model_name, in_channels: int, out_channels: int, hidden_channels: int, num_layers: int,
                  dropout=0.0, learning_rate=0.01):
         super().__init__()
         self.learning_rate = learning_rate
@@ -108,9 +108,10 @@ class GNNModel(pl.LightningModule):
 
         if self.gnn_model_name == "GIN":
             self.gnn = GINModel(in_channels=in_channels, out_channels=out_channels, hidden_channels=hidden_channels,
-                                dropout=dropout)
+                                num_layers=num_layers, dropout=dropout)
         elif self.gnn_model_name == "DGCNN":
-            self.gnn = DGCNNModel(in_channels=in_channels, out_channels=out_channels)
+            self.gnn = DGCNNModel(in_channels=in_channels, out_channels=out_channels, hidden_channels=hidden_channels,
+                                  num_layers=num_layers, dropout=dropout)
 
         self.train_acc = Accuracy(task='multiclass', num_classes=out_channels)
         self.val_acc = Accuracy(task='multiclass', num_classes=out_channels)
