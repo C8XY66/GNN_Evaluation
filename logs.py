@@ -1,33 +1,27 @@
-import config
-
 import os
 import csv
-import datetime
-import pytz
 
 
-def create_log_dir(repetition_index, fold_index):
+MAIN_DIR = "/Users/johanna/PycharmProjects/"
 
-    # Current timestamp
-    now = datetime.datetime.now(pytz.timezone('Europe/Zurich')).strftime("%Y-%m-%d_%H-%M")
+
+def create_log_dir(parent_dir, parent_dir_info, repetition_index, fold_index):
 
     # Parent directory
-    parent_dir_info = f"{config.DATASET_NAME}_reps_{config.REP}_folds_{config.N_SPLITS}_epochs_{config.EPOCHS}"
-
-    if config.PARENT_DIR is None:
-        config.PARENT_DIR = f"{config.MAIN_DIR}logs/{parent_dir_info}_{now}"
-        if not os.path.exists(config.PARENT_DIR):
-            os.makedirs(config.PARENT_DIR)
+    if parent_dir is None:
+        parent_dir_created = f"{MAIN_DIR}logs/{parent_dir_info}"
+        if not os.path.exists(parent_dir_created):
+            os.makedirs(parent_dir_created)
 
     # Subdirectory for the specific repetition and fold
     if repetition_index is not None and fold_index is not None:
-        sub_dir = f"{config.PARENT_DIR}/rep_{repetition_index}_fold_{fold_index}"
+        sub_dir = f"{parent_dir_created}/rep_{repetition_index}_fold_{fold_index}"
         if not os.path.exists(sub_dir):
             os.makedirs(sub_dir)
     else:
-        sub_dir = config.PARENT_DIR
+        sub_dir = parent_dir_created
 
-    return sub_dir
+    return sub_dir, parent_dir_created
 
 
 def save_test_results(log_dir, repetition_index, fold_index, test_acc, avg_performance=None,

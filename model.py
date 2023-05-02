@@ -10,7 +10,6 @@ import pytorch_lightning as pl
 
 # GIN Model
 class GINModel(nn.Module):
-    #def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, num_layers: int, dropout: float):
     def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, dropout: float, num_layers: int = 5):
 
         super().__init__()
@@ -73,7 +72,7 @@ class DGCNNModel(nn.Module):
         self.layers.append(DGCNNConv(in_channels=hidden_channels, out_channels=1))
 
         self.conv1D_1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=97, stride=97)
-        self.maxpool = nn.MaxPool1d(2, 2)
+        self.max_pool = nn.MaxPool1d(2, 2)
         self.conv1D_2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=5, stride=1)
 
         self.fc1 = nn.Linear(in_features=352, out_features=128)
@@ -88,7 +87,7 @@ class DGCNNModel(nn.Module):
         x = x.unsqueeze(1)  # Add channel dimension
 
         x = F.relu(self.conv1D_1(x))
-        x = self.maxpool(x)
+        x = self.max_pool(x)
         x = F.relu(self.conv1D_2(x))
         x = x.view(x.size(0), -1)  # Flatten
         x = F.relu(self.fc1(x))
@@ -111,8 +110,6 @@ class GNNModel(pl.LightningModule):
                                 dropout=dropout)
         elif gnn_model_name == "DGCNN":
             self.gnn = DGCNNModel(in_channels=in_channels, out_channels=out_channels)
-        else:
-            raise ValueError(f"Unsupported GNN model name: {gnn_model_name}")
 
         self.train_acc = Accuracy(task='multiclass', num_classes=out_channels)
         self.val_acc = Accuracy(task='multiclass', num_classes=out_channels)

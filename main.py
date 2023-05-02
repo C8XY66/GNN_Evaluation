@@ -1,10 +1,13 @@
 from model import GNNModel
 from datamodule import GraphDataModule
-import config
 from logs import create_log_dir, save_test_results
 from training import create_trainer, objective
 
+import datetime
+import pytz
+
 import os
+import argparse
 import numpy as np
 import torch
 import optuna
@@ -20,29 +23,52 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pytorch_lightnin
 warnings.filterwarnings("ignore", category=UserWarning, module="pytorch_lightning.trainer")
 warnings.filterwarnings("ignore", category=UserWarning, module="optuna.trial")
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--MODEL', type=str, default='GIN')
+parser.add_argument('--DATASET', type=str, default='NCI1')
+parser.add_argument('--N_SPLITS', type=int, default=2)
+parser.add_argument('--REP', type=int, default=1)
+parser.add_argument('--EPOCHS', type=int, default=5)
+parser.add_argument('--STARTING_REP', type=int, default=0)
+parser.add_argument('--STARTING_FOLD', type=int, default=0)
+parser.add_argument('--PARENT_DIR', type=str, default=None)
+#/Users/johanna/PycharmProjects/logs/NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00
+args = parser.parse_args()
+
+SEED = 42
+PARENT_DIR = args.PARENT_DIR
+
+
 if __name__ == '__main__':
+    # Current timestamp
+    now = datetime.datetime.now(pytz.timezone('Europe/Zurich')).strftime("%Y-%m-%d_%H-%M")
 
     overall_performances = []
 
-    for r in range(config.STARTING_REP, config.REP):
+    for r in range(args.STARTING_REP, args.REP):
         seed = r + 1  # Set a new seed for each repetition
-        datamodule = GraphDataModule(dataset_name=config.DATASET_NAME, seed=seed)
+        datamodule = GraphDataModule(dataset_name=args.DATASET, seed=seed)
         datamodule.prepare_data()
         fold_performances = []
 
-        for fold in range(config.STARTING_FOLD if r == config.STARTING_REP else 0, config.N_SPLITS):
-            log_dir = create_log_dir(r, fold)
+        for fold in range(args.STARTING_FOLD if r == args.STARTING_REP else 0, args.N_SPLITS):
+            parent_dir_info = f"{args.DATASET}_reps_{args.REP}_folds_{args.N_SPLITS}_epochs_{args.EPOCHS}_{now}"
+            log_dir, parent_dir_created = create_log_dir(PARENT_DIR, parent_dir_info, r, fold)
             # Create a new study object for each fold
             study = optuna.create_study(direction="maximize",
                                         pruner=optuna.pruners.MedianPruner(),
-                                        sampler=optuna.samplers.TPESampler(seed=config.SEED),
+                                        sampler=optuna.samplers.TPESampler(seed=SEED),
                                         study_name=f"rep_{r}_fold_{fold}",
                                         # storage=f"sqlite:///{log_dir}/rep_{r}_fold_{fold}_optuna.db",
                                         # load_if_exists=True
                                         )
 
             datamodule.setup("fit", fold)
-            study.optimize(lambda trial: objective(trial, datamodule, config.EPOCHS, r, fold), n_trials=config.TRIALS)
+
+            n_trials = 2 if args.MODEL == "GIN" else 2 if args.MODEL == "DGCNN" else None
+            study.optimize(lambda trial: objective(trial, datamodule, log_dir, args.EPOCHS,
+                                                   model_name=args.MODEL), n_trials=n_trials)
+
             print(f"Best trial for fold {fold}: {study.best_trial.value}")
 
             # Load the model with the best hyperparameters
@@ -55,7 +81,7 @@ if __name__ == '__main__':
 
             # Test the best model
             datamodule.setup("test", fold)
-            trainer = create_trainer(log_dir=log_dir, epochs=config.EPOCHS, testing=True)
+            trainer = create_trainer(log_dir=log_dir, epochs=args.EPOCHS, testing=True)
             test_result = trainer.test(best_model, datamodule=datamodule)
             test_acc = test_result[0]["test_acc"]
             print(f"Test accuracy for fold {fold}: {test_acc}")
@@ -68,11 +94,11 @@ if __name__ == '__main__':
 
         # Save test accuracies, average performance, and overall average performance after all folds are done
         for fold, test_acc in enumerate(fold_performances):
-            if fold == config.N_SPLITS - 1:
-                save_test_results(config.PARENT_DIR, r, fold, test_acc, avg_performance)
+            if fold == args.N_SPLITS - 1:
+                save_test_results(parent_dir_created, r, fold, test_acc, avg_performance)
             else:
-                save_test_results(config.PARENT_DIR, r, fold, test_acc)
+                save_test_results(parent_dir_created, r, fold, test_acc)
 
     overall_avg_performance = np.mean(overall_performances)
     print(f"Overall average performance: {overall_avg_performance}")
-    save_test_results(config.PARENT_DIR, None, None, None, None, overall_avg_performance)
+    save_test_results(parent_dir_created, None, None, None, None, overall_avg_performance)
