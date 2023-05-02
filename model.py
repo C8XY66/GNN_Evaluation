@@ -10,7 +10,8 @@ import pytorch_lightning as pl
 
 # GIN Model
 class GINModel(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, num_layers: int, dropout: float):
+    #def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, num_layers: int, dropout: float):
+    def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, dropout: float, num_layers: int = 5):
 
         super().__init__()
 
@@ -64,7 +65,7 @@ class DGCNNConv(MessagePassing):
 class DGCNNModel(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, hidden_channels=32, num_layers=4, dropout=0.5):
         super().__init__()
-
+        self.dropout = dropout
         self.layers = nn.ModuleList()
         self.layers.append(DGCNNConv(in_channels=in_channels, out_channels=hidden_channels))
         for _ in range(num_layers - 2):
@@ -99,14 +100,19 @@ class DGCNNModel(nn.Module):
 
 # General GNN
 class GNNModel(pl.LightningModule):
-    def __init__(self, in_channels: int, out_channels: int, hidden_channels: int,
+    def __init__(self, gnn_model_name, in_channels: int, out_channels: int, hidden_channels: int,
                  dropout=0.0, learning_rate=0.01):
         super().__init__()
         self.learning_rate = learning_rate
         self.save_hyperparameters()
 
-        self.gnn = GINModel(in_channels=in_channels, out_channels=out_channels, hidden_channels=hidden_channels,
-                            num_layers=5, dropout=dropout)
+        if gnn_model_name == "GIN":
+            self.gnn = GINModel(in_channels=in_channels, out_channels=out_channels, hidden_channels=hidden_channels,
+                                dropout=dropout)
+        elif gnn_model_name == "DGCNN":
+            self.gnn = DGCNNModel(in_channels=in_channels, out_channels=out_channels)
+        else:
+            raise ValueError(f"Unsupported GNN model name: {gnn_model_name}")
 
         self.train_acc = Accuracy(task='multiclass', num_classes=out_channels)
         self.val_acc = Accuracy(task='multiclass', num_classes=out_channels)
