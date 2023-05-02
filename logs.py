@@ -5,23 +5,26 @@ import csv
 MAIN_DIR = "/Users/johanna/PycharmProjects/"
 
 
-def create_log_dir(parent_dir, parent_dir_info, repetition_index, fold_index):
-
+def create_parent_dir(parent_dir, parent_dir_info):
     # Parent directory
     if parent_dir is None:
-        parent_dir_created = f"{MAIN_DIR}logs/{parent_dir_info}"
-        if not os.path.exists(parent_dir_created):
-            os.makedirs(parent_dir_created)
+        parent_dir = f"{MAIN_DIR}logs/{parent_dir_info}"
+        if not os.path.exists(parent_dir):
+            os.makedirs(parent_dir)
+    return parent_dir
+
+
+def create_sub_dir(parent_dir, repetition_index, fold_index):
 
     # Subdirectory for the specific repetition and fold
     if repetition_index is not None and fold_index is not None:
-        sub_dir = f"{parent_dir_created}/rep_{repetition_index}_fold_{fold_index}"
+        sub_dir = f"{parent_dir}/rep_{repetition_index}_fold_{fold_index}"
         if not os.path.exists(sub_dir):
             os.makedirs(sub_dir)
     else:
-        sub_dir = parent_dir_created
+        sub_dir = parent_dir
 
-    return sub_dir, parent_dir_created
+    return sub_dir
 
 
 def save_test_results(log_dir, repetition_index, fold_index, test_acc, avg_performance=None,

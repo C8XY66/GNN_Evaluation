@@ -1,6 +1,6 @@
 from model import GNNModel
 from datamodule import GraphDataModule
-from logs import create_log_dir, save_test_results
+from logs import create_parent_dir, create_sub_dir, save_test_results
 from training import create_trainer, objective
 
 import datetime
@@ -40,8 +40,10 @@ PARENT_DIR = args.PARENT_DIR
 
 
 if __name__ == '__main__':
-    # Current timestamp
+    # Log folder with current timestamp
     now = datetime.datetime.now(pytz.timezone('Europe/Zurich')).strftime("%Y-%m-%d_%H-%M")
+    parent_dir_info = f"{args.DATASET}_reps_{args.REP}_folds_{args.N_SPLITS}_epochs_{args.EPOCHS}_{now}"
+    parent_dir = create_parent_dir(PARENT_DIR, parent_dir_info)
 
     overall_performances = []
 
@@ -52,8 +54,8 @@ if __name__ == '__main__':
         fold_performances = []
 
         for fold in range(args.STARTING_FOLD if r == args.STARTING_REP else 0, args.N_SPLITS):
-            parent_dir_info = f"{args.DATASET}_reps_{args.REP}_folds_{args.N_SPLITS}_epochs_{args.EPOCHS}_{now}"
-            log_dir, parent_dir_created = create_log_dir(PARENT_DIR, parent_dir_info, r, fold)
+            # Create sub folder per fold of repetition
+            log_dir = create_sub_dir(parent_dir, r, fold)
             # Create a new study object for each fold
             study = optuna.create_study(direction="maximize",
                                         pruner=optuna.pruners.MedianPruner(),
@@ -65,6 +67,7 @@ if __name__ == '__main__':
 
             datamodule.setup("fit", fold)
 
+            # Set number of trials according to number of hyperparameters to optimise per model
             n_trials = 2 if args.MODEL == "GIN" else 2 if args.MODEL == "DGCNN" else None
             study.optimize(lambda trial: objective(trial, datamodule, log_dir, args.EPOCHS,
                                                    model_name=args.MODEL), n_trials=n_trials)
@@ -95,10 +98,10 @@ if __name__ == '__main__':
         # Save test accuracies, average performance, and overall average performance after all folds are done
         for fold, test_acc in enumerate(fold_performances):
             if fold == args.N_SPLITS - 1:
-                save_test_results(parent_dir_created, r, fold, test_acc, avg_performance)
+                save_test_results(parent_dir, r, fold, test_acc, avg_performance)
             else:
-                save_test_results(parent_dir_created, r, fold, test_acc)
+                save_test_results(parent_dir, r, fold, test_acc)
 
     overall_avg_performance = np.mean(overall_performances)
     print(f"Overall average performance: {overall_avg_performance}")
-    save_test_results(parent_dir_created, None, None, None, None, overall_avg_performance)
+    save_test_results(parent_dir, None, None, None, None, overall_avg_performance)
