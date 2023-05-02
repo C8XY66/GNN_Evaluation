@@ -99,10 +99,40 @@ class DGCNNModel(nn.Module):
         return x
 
 
+# MLP Classifiers copied from MolecularFingerprint and DeepMultisets
+# https://github.com/diningphil/gnn-comparison/tree/master/models/graph_classifiers
+class MLPModel(torch.nn.Module):
+    def __init__(self, in_channels, out_channels, hidden_channels, dataset_type):
+        super().__init__()
+
+        assert dataset_type in ['social', 'chemical'], "Invalid model_type. Must be either 'social' or 'chemical'."
+
+        self.model_type = dataset_type
+
+        if self.model_type == 'chemical':
+            self.mlp = torch.nn.Sequential(nn.Linear(in_channels, hidden_channels), nn.ReLU(),
+                                           nn.Linear(hidden_channels, out_channels), nn.ReLU())
+        elif self.model_type == 'social':
+            self.fc_vertex = nn.Linear(in_channels, hidden_channels)
+            self.fc_global1 = nn.Linear(hidden_channels, hidden_channels)
+            self.fc_global2 = nn.Linear(hidden_channels, out_channels)
+
+    def forward(self, data):
+        if self.model_type == 'chemical':
+            return self.mlp(global_add_pool(data.x, data.batch))
+        elif self.model_type == 'social':
+            x, batch = data.x, data.batch
+            x = F.relu(self.fc_vertex(x))
+            x = global_add_pool(x, batch)  # sums all vertex embeddings belonging to the same graph!
+            x = F.relu(self.fc_global1(x))
+            x = self.fc_global2(x)
+            return x
+
+
 # General GNN
 class GNNModel(pl.LightningModule):
     def __init__(self, gnn_model_name, in_channels: int, out_channels: int, hidden_channels: int, num_layers: int,
-                 dropout=0.0, learning_rate=0.01):
+                 dropout: float, learning_rate: float, dataset_type: str):
         super().__init__()
         self.learning_rate = learning_rate
         self.gnn_model_name = gnn_model_name
@@ -114,6 +144,9 @@ class GNNModel(pl.LightningModule):
         elif self.gnn_model_name == "DGCNN":
             self.gnn = DGCNNModel(in_channels=in_channels, out_channels=out_channels, hidden_channels=hidden_channels,
                                   num_layers=num_layers, dropout=dropout)
+        elif self.gnn_model_name == "MLP":
+            self.gnn = MLPModel(in_channels=in_channels, out_channels=out_channels, hidden_channels=hidden_channels,
+                                dataset_type=dataset_type)
 
         self.train_acc = Accuracy(task='multiclass', num_classes=out_channels)
         self.val_acc = Accuracy(task='multiclass', num_classes=out_channels)
