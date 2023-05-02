@@ -30,9 +30,9 @@ class GINModel(nn.Module):
 
 # DGCNN Model
 class DGCNNConv(MessagePassing):
-    def __init__(self, in_channels, hidden_channels):
+    def __init__(self, in_channels: int, out_channels: int):
         super().__init__(aggr='add')  # "Add" aggregation
-        self.lin = nn.Linear(in_channels, hidden_channels)
+        self.lin = nn.Linear(in_features=in_channels, out_features=out_channels)
 
     def forward(self, x, edge_index):
         # x has shape [N, in_channels], edge_index has shape [2, E]
@@ -62,21 +62,21 @@ class DGCNNConv(MessagePassing):
 
 
 class DGCNNModel(nn.Module):
-    def __init__(self, in_channels, out_channels, hidden_channels=32, num_layers=4, dropout=0.5):
+    def __init__(self, in_channels: int, out_channels: int, hidden_channels=32, num_layers=4, dropout=0.5):
         super().__init__()
 
         self.layers = nn.ModuleList()
-        self.layers.append(DGCNNConv(in_channels, hidden_channels))
+        self.layers.append(DGCNNConv(in_channels=in_channels, out_channels=hidden_channels))
         for _ in range(num_layers - 2):
-            self.layers.append(DGCNNConv(hidden_channels, hidden_channels))
-        self.layers.append(DGCNNConv(hidden_channels, 1))
+            self.layers.append(DGCNNConv(in_channels=hidden_channels, out_channels=hidden_channels))
+        self.layers.append(DGCNNConv(in_channels=hidden_channels, out_channels=1))
 
         self.conv1D_1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=97, stride=97)
         self.maxpool = nn.MaxPool1d(2, 2)
         self.conv1D_2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=5, stride=1)
 
-        self.fc1 = nn.Linear(352, 128)
-        self.fc2 = nn.Linear(128, out_channels)
+        self.fc1 = nn.Linear(in_features=352, out_features=128)
+        self.fc2 = nn.Linear(in_features=128, out_features=out_channels)
 
     def forward(self, x, edge_index, batch):
 
@@ -96,10 +96,11 @@ class DGCNNModel(nn.Module):
 
         return x
 
+
 # General GNN
 class GNNModel(pl.LightningModule):
-    def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, dropout: float, learning_rate=0.01):
-
+    def __init__(self, in_channels: int, out_channels: int, hidden_channels: int,
+                 dropout=0.0, learning_rate=0.01):
         super().__init__()
         self.learning_rate = learning_rate
         self.save_hyperparameters()
