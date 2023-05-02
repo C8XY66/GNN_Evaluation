@@ -24,16 +24,26 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pytorch_lightnin
 warnings.filterwarnings("ignore", category=UserWarning, module="optuna.trial")
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--MODEL', type=str, default='GIN')
-parser.add_argument('--DATASET', type=str, default='NCI1')
-parser.add_argument('--N_SPLITS', type=int, default=2)
-parser.add_argument('--REP', type=int, default=1)
-parser.add_argument('--EPOCHS', type=int, default=5)
-parser.add_argument('--STARTING_REP', type=int, default=0)
-parser.add_argument('--STARTING_FOLD', type=int, default=0)
-parser.add_argument('--PARENT_DIR', type=str, default=None)
-#/Users/johanna/PycharmProjects/logs/NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00
+parser.add_argument('--MODEL', type=str, default='GIN', help='name of model (default: GIN)')
+parser.add_argument('--DATASET', type=str, default='NCI1', help='name of dataset (default: NCI1)')
+parser.add_argument('--N_SPLITS', type=int, default=2, help='number of folds dataset is split into')
+parser.add_argument('--REP', type=int, default=1, help='number of total repetitions')
+parser.add_argument('--EPOCHS', type=int, default=5, help='number of epochs to train each trial of fold ')
+parser.add_argument('--STARTING_REP', type=int, default=0, help='from which repetition to start (default: 0)')
+parser.add_argument('--STARTING_FOLD', type=int, default=0, help='from which fold to start (default: 0)')
+parser.add_argument('--PARENT_DIR', type=str, default=None, help="name of parent directory for resuming interrupted "
+                                                                 "run (default: None). Use format like "
+                                                                 "'/Users/johanna/PycharmProjects/logs/NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00'")
 args = parser.parse_args()
+
+# Check if inputs are valid
+if args.MODEL not in ['GIN', 'DGCNN']:
+    raise ValueError("Model name must be 'GIN' or 'DGCNN'")
+if args.DATASET not in ['NCI1', 'Proteins', 'D&D', 'COLLAB', 'IMDB-B']:
+    raise ValueError("Dataset name must be one of the following: 'NCI1', 'Proteins', 'D&D', 'COLLAB', 'IMDB-B'")
+if args.PARENT_DIR is not None and not os.path.isdir(args.PARENT_DIR):
+    raise ValueError("Invalid directory, should be of format: "
+                     "'/Users/johanna/PycharmProjects/logs/NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00' ")
 
 SEED = 42
 PARENT_DIR = args.PARENT_DIR
