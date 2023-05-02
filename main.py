@@ -43,7 +43,7 @@ if args.DATASET not in ['NCI1', 'Proteins', 'D&D', 'COLLAB', 'IMDB-B']:
     raise ValueError("Dataset name must be one of the following: 'NCI1', 'Proteins', 'D&D', 'COLLAB', 'IMDB-B'")
 if args.PARENT_DIR is not None and not os.path.isdir(args.PARENT_DIR):
     raise ValueError("Invalid directory, should be of format: "
-                     "'/Users/johanna/PycharmProjects/logs/NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00' ")
+                     "'/Users/johanna/PycharmProjects/logs/GIN_NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00' ")
 
 SEED = 42
 PARENT_DIR = args.PARENT_DIR
@@ -52,7 +52,7 @@ PARENT_DIR = args.PARENT_DIR
 if __name__ == '__main__':
     # Log folder with current timestamp
     now = datetime.datetime.now(pytz.timezone('Europe/Zurich')).strftime("%Y-%m-%d_%H-%M")
-    parent_dir_info = f"{args.DATASET}_reps_{args.REP}_folds_{args.N_SPLITS}_epochs_{args.EPOCHS}_{now}"
+    parent_dir_info = f"{args.MODEL}_{args.DATASET}_reps_{args.REP}_folds_{args.N_SPLITS}_epochs_{args.EPOCHS}_{now}"
     parent_dir = create_parent_dir(PARENT_DIR, parent_dir_info)
 
     overall_performances = []
