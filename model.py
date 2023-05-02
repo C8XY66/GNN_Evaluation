@@ -103,12 +103,13 @@ class GNNModel(pl.LightningModule):
                  dropout=0.0, learning_rate=0.01):
         super().__init__()
         self.learning_rate = learning_rate
+        self.gnn_model_name = gnn_model_name
         self.save_hyperparameters()
 
-        if gnn_model_name == "GIN":
+        if self.gnn_model_name == "GIN":
             self.gnn = GINModel(in_channels=in_channels, out_channels=out_channels, hidden_channels=hidden_channels,
                                 dropout=dropout)
-        elif gnn_model_name == "DGCNN":
+        elif self.gnn_model_name == "DGCNN":
             self.gnn = DGCNNModel(in_channels=in_channels, out_channels=out_channels)
 
         self.train_acc = Accuracy(task='multiclass', num_classes=out_channels)
@@ -142,7 +143,13 @@ class GNNModel(pl.LightningModule):
         self.log('test_acc', self.test_acc, prog_bar=True, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), self.learning_rate)
+        optimizer = torch.optim.Adam(self.parameters(), self.learning_rate)
+
+        if self.gnn_model_name == "GIN":
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
+            return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val_loss"}
+        else:
+            return optimizer
 
     def on_save_checkpoint(self, checkpoint):
         checkpoint["init_args"] = self.hparams
