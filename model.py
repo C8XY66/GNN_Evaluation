@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,11 +10,10 @@ import pytorch_lightning as pl
 # GIN Model
 class GINModel(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, dropout: float, num_layers: int = 5):
-
         super().__init__()
 
         self.gnn = GIN(in_channels=in_channels, hidden_channels=hidden_channels, num_layers=num_layers,
-                       dropout=dropout, jk='cat')
+                       dropout=dropout, jk="cat")
 
         self.classifier = MLP([hidden_channels, hidden_channels, out_channels],
                               norm="batch_norm", dropout=dropout)
@@ -31,7 +29,7 @@ class GINModel(nn.Module):
 # DGCNN Model
 class DGCNNConv(MessagePassing):
     def __init__(self, in_channels: int, out_channels: int):
-        super().__init__(aggr='add')  # "Add" aggregation
+        super().__init__(aggr="add")  # "Add" aggregation
         self.lin = nn.Linear(in_features=in_channels, out_features=out_channels)
 
     def forward(self, x, edge_index):
@@ -71,7 +69,7 @@ class DGCNNModel(nn.Module):
             self.layers.append(DGCNNConv(in_channels=hidden_channels, out_channels=hidden_channels))
         self.layers.append(DGCNNConv(in_channels=hidden_channels, out_channels=1))
 
-        self.sort_aggr = SortAggregation(k=2910) # self.k * self.total_latent_dim
+        self.sort_aggr = SortAggregation(k=2910)  # self.k * self.total_latent_dim
 
         self.conv1D_1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=97, stride=97)
         self.max_pool = nn.MaxPool1d(2, 2)
@@ -99,28 +97,26 @@ class DGCNNModel(nn.Module):
         return x
 
 
-# MLP Classifiers copied from MolecularFingerprint and DeepMultisets
+# MLP Classifiers adapted from MolecularFingerprint and DeepMultisets
 # https://github.com/diningphil/gnn-comparison/tree/master/models/graph_classifiers
 class MLPModel(torch.nn.Module):
     def __init__(self, in_channels, out_channels, hidden_channels, dataset_type):
         super().__init__()
 
-        assert dataset_type in ['social', 'chemical'], "Invalid model_type. Must be either 'social' or 'chemical'."
-
         self.model_type = dataset_type
 
-        if self.model_type == 'chemical':
+        if self.model_type == "chemical":
             self.mlp = torch.nn.Sequential(nn.Linear(in_channels, hidden_channels), nn.ReLU(),
                                            nn.Linear(hidden_channels, out_channels), nn.ReLU())
-        elif self.model_type == 'social':
+        elif self.model_type == "social":
             self.fc_vertex = nn.Linear(in_channels, hidden_channels)
             self.fc_global1 = nn.Linear(hidden_channels, hidden_channels)
             self.fc_global2 = nn.Linear(hidden_channels, out_channels)
 
     def forward(self, data):
-        if self.model_type == 'chemical':
+        if self.model_type == "chemical":
             return self.mlp(global_add_pool(data.x, data.batch))
-        elif self.model_type == 'social':
+        elif self.model_type == "social":
             x, batch = data.x, data.batch
             x = F.relu(self.fc_vertex(x))
             x = global_add_pool(x, batch)  # sums all vertex embeddings belonging to the same graph!
@@ -148,9 +144,9 @@ class GNNModel(pl.LightningModule):
             self.gnn = MLPModel(in_channels=in_channels, out_channels=out_channels, hidden_channels=hidden_channels,
                                 dataset_type=dataset_type)
 
-        self.train_acc = Accuracy(task='multiclass', num_classes=out_channels)
-        self.val_acc = Accuracy(task='multiclass', num_classes=out_channels)
-        self.test_acc = Accuracy(task='multiclass', num_classes=out_channels)
+        self.train_acc = Accuracy(task="multiclass", num_classes=out_channels)
+        self.val_acc = Accuracy(task="multiclass", num_classes=out_channels)
+        self.test_acc = Accuracy(task="multiclass", num_classes=out_channels)
 
     def forward(self, x, edge_index, batch):
         x = self.gnn(x, edge_index, batch)
@@ -160,23 +156,23 @@ class GNNModel(pl.LightningModule):
         y_hat = self(data.x, data.edge_index, data.batch)
         loss = F.cross_entropy(y_hat, data.y)
         self.train_acc(y_hat.softmax(dim=-1), data.y)
-        self.log('train_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
-        self.log('train_acc', self.train_acc, prog_bar=True, on_step=False, on_epoch=True)
+        self.log("train_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+        self.log("train_acc", self.train_acc, prog_bar=True, on_step=False, on_epoch=True)
         return loss
 
     def validation_step(self, data, batch_idx):
         y_hat = self(data.x, data.edge_index, data.batch)
         loss = F.cross_entropy(y_hat, data.y)
         self.val_acc(y_hat.softmax(dim=-1), data.y)
-        self.log('val_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
-        self.log('val_acc', self.val_acc, prog_bar=True, on_step=False, on_epoch=True)
+        self.log("val_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+        self.log("val_acc", self.val_acc, prog_bar=True, on_step=False, on_epoch=True)
 
     def test_step(self, data, batch_idx):
         y_hat = self(data.x, data.edge_index, data.batch)
         loss = F.cross_entropy(y_hat, data.y)
         self.test_acc(y_hat.softmax(dim=-1), data.y)
-        self.log('test_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
-        self.log('test_acc', self.test_acc, prog_bar=True, on_step=False, on_epoch=True)
+        self.log("test_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+        self.log("test_acc", self.test_acc, prog_bar=True, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), self.learning_rate)

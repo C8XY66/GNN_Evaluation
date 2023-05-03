@@ -9,7 +9,7 @@ from optuna.integration import PyTorchLightningPruningCallback
 
 
 def load_config(config_file):
-    with open(config_file, 'r') as file:
+    with open(config_file, "r") as file:
         config = yaml.safe_load(file)
     return config
 
@@ -50,7 +50,7 @@ def create_trainer(log_dir, epochs, pruning_callback=None, testing=False, trial=
 
 def objective(trial, datamodule, log_dir, epochs, model_name, dataset_type):
     config_file = f"config_{model_name}.yaml"
-    config = load_config(config_file)
+    config = load_config(config_file=config_file)
 
     # Optimise hyperparameters
     hyperparameters = {}
@@ -62,26 +62,26 @@ def objective(trial, datamodule, log_dir, epochs, model_name, dataset_type):
             hyperparameters[param] = values
 
     # Model and DataModule
-    datamodule.setup(fold=0, batch_size=hyperparameters['batch_size'])
+    datamodule.setup(fold=0, batch_size=hyperparameters["batch_size"])
     model = GNNModel(gnn_model_name=model_name,
                      in_channels=datamodule.num_node_features,
                      out_channels=datamodule.num_classes,
-                     hidden_channels=hyperparameters['hidden_channels'],
-                     num_layers=hyperparameters['num_layers'],
-                     dropout=hyperparameters['dropout'],
-                     learning_rate=hyperparameters['learning_rate'],
+                     hidden_channels=hyperparameters["hidden_channels"],
+                     num_layers=hyperparameters["num_layers"],
+                     dropout=hyperparameters["dropout"],
+                     learning_rate=hyperparameters["learning_rate"],
                      dataset_type=dataset_type)
 
     # Training
-    pruning_callback = PyTorchLightningPruningCallback(trial, monitor="val_acc")  # from optuna-pl-integration
-    trainer = create_trainer(log_dir, epochs=epochs,
+    pruning_callback = PyTorchLightningPruningCallback(trial=trial, monitor="val_acc")  # from optuna-pl-integration
+    trainer = create_trainer(log_dir=log_dir, epochs=epochs,
                              pruning_callback=pruning_callback,
                              trial=trial)
 
-    hyperparameters = dict(hidden_channels=hyperparameters['hidden_channels'], batch_size=hyperparameters['batch_size'],
-                           epochs=epochs, dropout=hyperparameters['dropout'])
+    hyperparameters = dict(hidden_channels=hyperparameters["hidden_channels"], batch_size=hyperparameters["batch_size"],
+                           epochs=epochs, dropout=hyperparameters["dropout"])
     trainer.logger.log_hyperparams(hyperparameters)
-    trainer.fit(model, datamodule=datamodule)
+    trainer.fit(model=model, datamodule=datamodule)
 
-    return trainer.callback_metrics['val_acc'].item()
+    return trainer.callback_metrics["val_acc"].item()
 

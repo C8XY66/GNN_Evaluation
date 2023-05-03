@@ -24,46 +24,43 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pytorch_lightnin
 warnings.filterwarnings("ignore", category=UserWarning, module="optuna.trial")
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--EXPERIMENT', type=str, default='with_node_features',
+parser.add_argument("--EXPERIMENT", type=str, default='with_node_features',
                     help="type of experiment: with_node_features, without_node_features (default: with_node_features)")
-parser.add_argument('--MODEL', type=str, default='GIN', help='name of model: GIN, DGCNN, MLP (default: GIN)')
-parser.add_argument('--DATASET', type=str, default='NCI1', help='name of dataset (default: NCI1)')
-parser.add_argument('--N_SPLITS', type=int, default=2, help='number of folds dataset is split into')
-parser.add_argument('--REP', type=int, default=1, help='number of total repetitions')
-parser.add_argument('--EPOCHS', type=int, default=5, help='number of epochs to train each trial of fold ')
-parser.add_argument('--STARTING_REP', type=int, default=0, help='from which repetition to start (default: 0)')
-parser.add_argument('--STARTING_FOLD', type=int, default=0, help='from which fold to start (default: 0)')
-parser.add_argument('--PARENT_DIR', type=str, default=None,
+parser.add_argument("--MODEL", type=str, default="GIN", help="name of model: GIN, DGCNN, MLP (default: GIN)")
+parser.add_argument("--DATASET", type=str, default="NCI1", help="name of dataset (default: NCI1)")
+parser.add_argument("--N_SPLITS", type=int, default=2, help="number of folds dataset is split into")
+parser.add_argument("--REP", type=int, default=1, help="number of total repetitions")
+parser.add_argument("--EPOCHS", type=int, default=5, help="number of epochs to train each trial of fold")
+parser.add_argument("--STARTING_REP", type=int, default=0, help="from which repetition to start (default: 0)")
+parser.add_argument("--STARTING_FOLD", type=int, default=0, help="from which fold to start (default: 0)")
+parser.add_argument("--PARENT_DIR", type=str, default=None,
                     help="name of parent directory for resuming interrupted run (default: None). Use format like "
                          "'/Users/johanna/PycharmProjects/logs/NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00'")
 args = parser.parse_args()
 
 # Check if inputs are valid
-if args.EXPERIMENT not in ['with_node_features', 'without_node_features']:
+if args.EXPERIMENT not in ["with_node_features", "without_node_features"]:
+    raise ValueError("Experiment must be 'with_node_features' or 'without_node_features'")
+if args.MODEL not in ["GIN", "DGCNN", "MLP"]:
     raise ValueError("Model name must be 'GIN' or 'DGCNN'")
-if args.MODEL not in ['GIN', 'DGCNN', 'MLP']:
-    raise ValueError("Model name must be 'GIN' or 'DGCNN'")
-if args.DATASET not in ['NCI1', 'Proteins', 'D&D', 'COLLAB', 'IMDB-B']:
+if args.DATASET not in ["NCI1", "Proteins", "D&D", "COLLAB", "IMDB-B"]:
     raise ValueError("Dataset name must be one of the following: 'NCI1', 'Proteins', 'D&D', 'COLLAB', 'IMDB-B'")
 if args.PARENT_DIR is not None and not os.path.isdir(args.PARENT_DIR):
     raise ValueError("Invalid directory, should be of format: "
                      "'/Users/johanna/PycharmProjects/logs/GIN_NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00' ")
 
-SEED = 42
-PARENT_DIR = args.PARENT_DIR
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Experiment Setup
     experiment = args.EXPERIMENT
     model = args.MODEL
-    dataset_type = 'chemical' if args.DATASET in ['NCI1', 'Proteins', 'D&D'] \
-        else 'social' if args.DATASET in ['COLLAB', 'IMDB-B'] else None
+    dataset_type = "chemical" if args.DATASET in ["NCI1", "Proteins", "D&D"] \
+        else "social" if args.DATASET in ["COLLAB", "IMDB-B"] else None
 
     # Log folder with current timestamp
-    now = datetime.datetime.now(pytz.timezone('Europe/Zurich')).strftime("%Y-%m-%d_%H-%M")
+    now = datetime.datetime.now(pytz.timezone("Europe/Zurich")).strftime("%Y-%m-%d_%H-%M")
     parent_dir_info = f"{model}_{args.DATASET}_reps_{args.REP}_folds_{args.N_SPLITS}_epochs_{args.EPOCHS}_{now}"
-    parent_dir = create_parent_dir(PARENT_DIR, parent_dir_info)
+    parent_dir = create_parent_dir(parent_dir=args.PARENT_DIR, parent_dir_info=parent_dir_info)
 
     overall_performances = []
 
@@ -77,17 +74,17 @@ if __name__ == '__main__':
 
         for fold in range(args.STARTING_FOLD if r == args.STARTING_REP else 0, args.N_SPLITS):
             # Create sub folder per fold of repetition
-            log_dir = create_sub_dir(parent_dir, r, fold)
+            log_dir = create_sub_dir(parent_dir=parent_dir, repetition_index=r, fold_index=fold)
             # Create a new study object for each fold
             study = optuna.create_study(direction="maximize",
                                         pruner=optuna.pruners.MedianPruner(),
-                                        sampler=optuna.samplers.TPESampler(seed=SEED),
+                                        sampler=optuna.samplers.TPESampler(seed=42),
                                         study_name=f"rep_{r}_fold_{fold}",
                                         # storage=f"sqlite:///{log_dir}/rep_{r}_fold_{fold}_optuna.db",
                                         # load_if_exists=True
                                         )
 
-            datamodule.setup("fit", fold)
+            datamodule.setup(fold)
 
             # Set number of trials according to number of hyperparameters to optimise per model
             # n_trials = 2 if model == "GIN" else 2 if model == "DGCNN" else None
@@ -103,12 +100,12 @@ if __name__ == '__main__':
             checkpoint = torch.load(checkpoint_path)  # Load the checkpoint dictionary from the file
             init_args = checkpoint["init_args"]  # Access the saved initialization parameters
             best_model = GNNModel(**init_args)  # Initialize the model using the saved parameters
-            best_model.load_state_dict(checkpoint['state_dict'])
+            best_model.load_state_dict(checkpoint["state_dict"])
 
             # Test the best model
-            datamodule.setup("test", fold)
+            datamodule.setup(fold)
             trainer = create_trainer(log_dir=log_dir, epochs=args.EPOCHS, testing=True)
-            test_result = trainer.test(best_model, datamodule=datamodule)
+            test_result = trainer.test(model=best_model, datamodule=datamodule)
             test_acc = test_result[0]["test_acc"]
             print(f"Test accuracy for fold {fold}: {test_acc}")
 
@@ -121,10 +118,13 @@ if __name__ == '__main__':
         # Save test accuracies, average performance, and overall average performance after all folds are done
         for fold, test_acc in enumerate(fold_performances):
             if fold == args.N_SPLITS - 1:
-                save_test_results(parent_dir, r, fold, test_acc, avg_performance)
+                save_test_results(log_dir=parent_dir, repetition_index=r, fold_index=fold,
+                                  test_acc=test_acc, avg_performance=avg_performance, overall_avg_performance=None)
             else:
-                save_test_results(parent_dir, r, fold, test_acc)
+                save_test_results(log_dir=parent_dir, repetition_index=r, fold_index=fold,
+                                  test_acc=test_acc, avg_performance=None, overall_avg_performance=None)
 
     overall_avg_performance = np.mean(overall_performances)
     print(f"Overall average performance: {overall_avg_performance}")
-    save_test_results(parent_dir, None, None, None, None, overall_avg_performance)
+    save_test_results(log_dir=parent_dir, repetition_index=None, fold_index=None,
+                      test_acc=None, avg_performance=None, overall_avg_performance=overall_avg_performance)

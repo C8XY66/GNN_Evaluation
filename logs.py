@@ -1,7 +1,6 @@
 import os
 import csv
 
-
 MAIN_DIR = "/Users/johanna/PycharmProjects/"
 
 
@@ -30,31 +29,31 @@ def create_sub_dir(parent_dir, repetition_index, fold_index):
 def save_test_results(log_dir, repetition_index, fold_index, test_acc, avg_performance=None,
                       overall_avg_performance=None):
     # Create a CSV file to log the test accuracies
-    file_path = os.path.join(log_dir, 'test_accuracies.csv')
+    file_path = os.path.join(log_dir, "test_accuracies.csv")
 
     if not os.path.exists(file_path):
-        with open(file_path, mode='w', newline='') as file:
+        with open(file_path, mode="w", newline="") as file:
             writer = csv.writer(file)
             writer.writerow(
-                ['repetition', 'fold', 'test_accuracy_fold', 'Avg_Performance_Rep', 'Overall_Avg_Performance'])
+                ["repetition", "fold", "test_accuracy_fold", "Avg_Performance_Rep", "Overall_Avg_Performance"])
 
-    with open(file_path, mode='a', newline='') as file:
+    with open(file_path, mode="a", newline="") as file:
         writer = csv.writer(file)
 
         if repetition_index is not None and fold_index is not None:
             row = [repetition_index, fold_index, test_acc]
         else:
-            row = ['', '', '']
+            row = ["", "", ""]
 
         if avg_performance is not None:
             row.append(avg_performance)
         else:
-            row.append('')
+            row.append("")
 
         if overall_avg_performance is not None:
             row.append(overall_avg_performance)
         else:
-            row.append('')
+            row.append("")
 
         writer.writerow(row)
 
