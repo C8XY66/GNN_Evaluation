@@ -43,8 +43,8 @@ if args.EXPERIMENT not in ["with_node_features", "without_node_features"]:
     raise ValueError("Experiment must be 'with_node_features' or 'without_node_features'")
 if args.MODEL not in ["GIN", "DGCNN", "MLP"]:
     raise ValueError("Model name must be 'GIN' or 'DGCNN'")
-if args.DATASET not in ["NCI1", "Proteins", "D&D", "COLLAB", "IMDB-B"]:
-    raise ValueError("Dataset name must be one of the following: 'NCI1', 'Proteins', 'D&D', 'COLLAB', 'IMDB-B'")
+if args.DATASET not in ["NCI1", "Proteins", "DD", "COLLAB", "IMDB-BINARY"]:
+    raise ValueError("Dataset name must be one of the following: 'NCI1', 'Proteins', 'DD', 'COLLAB', 'IMDB-BINARY'")
 if args.PARENT_DIR is not None and not os.path.isdir(args.PARENT_DIR):
     raise ValueError("Invalid directory, should be of format: "
                      "'/Users/johanna/PycharmProjects/logs/GIN_NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00' ")
@@ -54,8 +54,8 @@ if __name__ == "__main__":
     # Experiment Setup
     experiment = args.EXPERIMENT
     model = args.MODEL
-    dataset_type = "chemical" if args.DATASET in ["NCI1", "Proteins", "D&D"] \
-        else "social" if args.DATASET in ["COLLAB", "IMDB-B"] else None
+    dataset_type = "chemical" if args.DATASET in ["NCI1", "Proteins", "DD"] \
+        else "social" if args.DATASET in ["COLLAB", "IMDB-BINARY"] else None
 
     # Log folder with current timestamp
     now = datetime.datetime.now(pytz.timezone("Europe/Zurich")).strftime("%Y-%m-%d_%H-%M")
@@ -86,8 +86,6 @@ if __name__ == "__main__":
 
             datamodule.setup(fold)
 
-            # Set number of trials according to number of hyperparameters to optimise per model
-            # n_trials = 2 if model == "GIN" else 2 if model == "DGCNN" else None
             study.optimize(lambda trial: objective(trial=trial, datamodule=datamodule, log_dir=log_dir,
                                                    epochs=args.EPOCHS, model_name=model, dataset_type=dataset_type),
                            n_trials=2)
