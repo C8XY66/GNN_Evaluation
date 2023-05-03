@@ -55,21 +55,30 @@ class GraphDataModule(pl.LightningDataModule):
             self.dataset = CustomInMemoryDataset(neutralised_data_list)
         # self.dataset = self.dataset[:1000] #for quick experiments
 
-        self.skf = StratifiedKFold(n_splits=self.n_splits)
+        # Shuffle dataset based on seed
+        indices = torch.randperm(len(self.dataset), generator=torch.Generator().manual_seed(self.seed))
+        shuffled_data_list = [self.dataset[i] for i in indices]
+        self.dataset = CustomInMemoryDataset(shuffled_data_list)
+
+        # Create stratified folds using shuffled dataset
+        y = [data.y.item() for data in shuffled_data_list]
+        self.skf = StratifiedKFold(n_splits=self.n_splits, shuffle=False)
+        self.splits = list(self.skf.split(torch.zeros(len(y)), y))
 
     def setup(self, stage: Optional[str] = None, fold: int = 0, batch_size: int = 32):
         self.fold = fold
         self.batch_size = batch_size
-        y = [data.y.item() for data in self.dataset]
 
-        train_indices, test_indices = list(self.skf.split(torch.zeros(len(y)), y))[self.fold]
-        train_dataset = self.dataset[train_indices]
+        train_indices, test_indices = self.splits[self.fold]
+        train_dataset = [self.dataset[i] for i in train_indices]
 
         num_val = int(len(train_dataset) * 0.1)
         num_train = len(train_dataset) - num_val
 
-        self.train_dataset, self.val_dataset = torch.utils.data.random_split(train_dataset, [num_train, num_val])
-        self.test_dataset = self.dataset[test_indices]
+        generator = torch.Generator().manual_seed(self.seed)
+        self.train_dataset, self.val_dataset = torch.utils.data.random_split(train_dataset, [num_train, num_val],
+                                                                             generator=generator)
+        self.test_dataset = [self.dataset[i] for i in test_indices]
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
