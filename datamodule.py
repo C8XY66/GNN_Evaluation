@@ -1,5 +1,7 @@
 
+import os
 import numpy as np
+from typing import Optional
 from sklearn.model_selection import StratifiedKFold
 
 import torch
@@ -40,8 +42,15 @@ class GraphDataModule(pl.LightningDataModule):
             torch.manual_seed(self.seed)
             np.random.seed(self.seed)
 
-        self.dataset = TUDataset(root="data/TUDataset", name=self.dataset_name,
-                                 pre_transform=T.OneHotDegree(135) if self.dataset_type == "social" else None)
+        if self.dataset_type == "social":
+            max_degree = 0
+            temp_dataset = TUDataset(root="data/TUDataset", name=self.dataset_name)
+            for data in temp_dataset:
+                max_degree = max(max_degree, data.edge_index.max().item())
+            self.dataset = TUDataset(root="data/TUDataset", name=self.dataset_name,
+                                     pre_transform=T.OneHotDegree(max_degree))
+        else:
+            self.dataset = TUDataset(root="data/TUDataset", name=self.dataset_name)
 
         # Node neutralisation
         if self.experiment == "without_node_features":
@@ -59,7 +68,7 @@ class GraphDataModule(pl.LightningDataModule):
         self.skf = StratifiedKFold(n_splits=self.n_splits, shuffle=False)
         self.splits = list(self.skf.split(torch.zeros(len(y)), y))
 
-    def setup(self, fold: int = 0, batch_size: int = 32):
+    def setup(self, stage: Optional[str] = None, fold: int = 0, batch_size: int = 32):
         self.fold = fold
         self.batch_size = batch_size
 

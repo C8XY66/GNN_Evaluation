@@ -51,6 +51,9 @@ if args.PARENT_DIR is not None and not os.path.isdir(args.PARENT_DIR):
 
 
 if __name__ == "__main__":
+    # Check for CUDA system support and use GPU if available otherwise run on CPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # device = Context-manager that changes the selected device
+
     # Experiment Setup
     experiment = args.EXPERIMENT
     model = args.MODEL
@@ -84,7 +87,7 @@ if __name__ == "__main__":
                                         # load_if_exists=True
                                         )
 
-            datamodule.setup(fold)
+            datamodule.setup(stage="train", fold=fold)
 
             study.optimize(lambda trial: objective(trial=trial, datamodule=datamodule, log_dir=log_dir,
                                                    epochs=args.EPOCHS, model_name=model, dataset_type=dataset_type),
@@ -101,7 +104,7 @@ if __name__ == "__main__":
             best_model.load_state_dict(checkpoint["state_dict"])
 
             # Test the best model
-            datamodule.setup(fold)
+            datamodule.setup(stage="test", fold=fold)
             trainer = create_trainer(log_dir=log_dir, epochs=args.EPOCHS, testing=True)
             test_result = trainer.test(model=best_model, datamodule=datamodule)
             test_acc = test_result[0]["test_acc"]
