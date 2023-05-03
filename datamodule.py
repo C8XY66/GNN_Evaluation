@@ -5,9 +5,22 @@ from sklearn.model_selection import StratifiedKFold
 
 import torch
 import torch_geometric.transforms as T
+from torch_geometric.data import InMemoryDataset
 from torch_geometric.datasets import TUDataset
 from torch_geometric.loader import DataLoader
 import pytorch_lightning as pl
+
+
+class CustomInMemoryDataset(InMemoryDataset):
+    def __init__(self, data_list, transform=None, pre_transform=None):
+        super().__init__(transform=transform, pre_transform=pre_transform)
+        self.data, self.slices = self.collate(data_list)
+
+    def _download(self):
+        pass
+
+    def _process(self):
+        pass
 
 
 class GraphDataModule(pl.LightningDataModule):
@@ -36,6 +49,12 @@ class GraphDataModule(pl.LightningDataModule):
         self.dataset = TUDataset(root='data/TUDataset', name=self.dataset_name,
                                  pre_transform=T.OneHotDegree(135) if self.dataset_type == "social" else None)
 
+        # Node neutralisation
+        if self.experiment == "without_node_features":
+            neutralised_data_list = [self.neutralise_node_features(data) for data in self.dataset]
+            self.dataset = CustomInMemoryDataset(neutralised_data_list)
+        # self.dataset = self.dataset[:1000] #for quick experiments
+
         self.skf = StratifiedKFold(n_splits=self.n_splits)
 
     def setup(self, stage: Optional[str] = None, fold: int = 0, batch_size: int = 32):
@@ -60,6 +79,13 @@ class GraphDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
+
+    @staticmethod
+    def neutralise_node_features(self, data):
+        num_nodes = data.x.size(0)
+        data.x = torch.zeros(num_nodes, 1)
+        data.x[:, 0] = 1
+        return data
 
     @property
     def num_node_features(self):
