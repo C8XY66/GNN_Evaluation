@@ -42,15 +42,8 @@ class GraphDataModule(pl.LightningDataModule):
             torch.manual_seed(self.seed)
             np.random.seed(self.seed)
 
-        if self.dataset_type == "social":
-            max_degree = 0
-            temp_dataset = TUDataset(root="data/TUDataset", name=self.dataset_name)
-            for data in temp_dataset:
-                max_degree = max(max_degree, data.edge_index.max().item())
-            self.dataset = TUDataset(root="data/TUDataset", name=self.dataset_name,
-                                     pre_transform=T.OneHotDegree(max_degree))
-        else:
-            self.dataset = TUDataset(root="data/TUDataset", name=self.dataset_name)
+        self.dataset = TUDataset(root="data/TUDataset", name=self.dataset_name,
+                                 pre_transform=T.OneHotDegree(500) if self.dataset_type == "social" else None)
 
         # Node neutralisation
         if self.experiment == "without_node_features":
@@ -93,7 +86,7 @@ class GraphDataModule(pl.LightningDataModule):
         return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
     @staticmethod
-    def neutralize_node_features(self, data):
+    def neutralize_node_features(data):
         num_nodes = data.x.size(0)
         data.x = torch.zeros(num_nodes, 1)
         data.x[:, 0] = 1
