@@ -113,11 +113,10 @@ class MLPModel(torch.nn.Module):
             self.fc_global1 = nn.Linear(hidden_channels, hidden_channels)
             self.fc_global2 = nn.Linear(hidden_channels, out_channels)
 
-    def forward(self, data):
+    def forward(self, x, edge_index, batch):
         if self.model_type == "chemical":
-            return self.mlp(global_add_pool(data.x, data.batch))
+            return self.mlp(global_add_pool(x, batch))
         elif self.model_type == "social":
-            x, batch = data.x, data.batch
             x = F.relu(self.fc_vertex(x))
             x = global_add_pool(x, batch)  # sums all vertex embeddings belonging to the same graph!
             x = F.relu(self.fc_global1(x))

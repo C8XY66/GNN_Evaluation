@@ -9,6 +9,9 @@ hidden_channels:
   - 32
   - 128
   - 256
-
+num_layers:
+  - 1
+dropout:
+  - 0.0
 
 

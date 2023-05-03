@@ -43,8 +43,8 @@ if args.EXPERIMENT not in ["with_node_features", "without_node_features"]:
     raise ValueError("Experiment must be 'with_node_features' or 'without_node_features'")
 if args.MODEL not in ["GIN", "DGCNN", "MLP"]:
     raise ValueError("Model name must be 'GIN' or 'DGCNN'")
-if args.DATASET not in ["NCI1", "Proteins", "DD", "COLLAB", "IMDB-BINARY"]:
-    raise ValueError("Dataset name must be one of the following: 'NCI1', 'Proteins', 'DD', 'COLLAB', 'IMDB-BINARY'")
+if args.DATASET not in ["NCI1", "PROTEINS", "DD", "COLLAB", "IMDB-BINARY"]:
+    raise ValueError("Dataset name must be one of the following: 'NCI1', 'PROTEINS', 'DD', 'COLLAB', 'IMDB-BINARY'")
 if args.PARENT_DIR is not None and not os.path.isdir(args.PARENT_DIR):
     raise ValueError("Invalid directory, should be of format: "
                      "'/Users/johanna/PycharmProjects/logs/GIN_NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00' ")
@@ -52,17 +52,19 @@ if args.PARENT_DIR is not None and not os.path.isdir(args.PARENT_DIR):
 
 if __name__ == "__main__":
     # Check for CUDA system support and use GPU if available otherwise run on CPU
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # device = Context-manager that changes the selected device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Experiment Setup
     experiment = args.EXPERIMENT
     model = args.MODEL
-    dataset_type = "chemical" if args.DATASET in ["NCI1", "Proteins", "DD"] \
+    dataset_type = "chemical" if args.DATASET in ["NCI1", "PROTEINS", "DD"] \
         else "social" if args.DATASET in ["COLLAB", "IMDB-BINARY"] else None
 
     # Log folder with current timestamp
     now = datetime.datetime.now(pytz.timezone("Europe/Zurich")).strftime("%Y-%m-%d_%H-%M")
-    parent_dir_info = f"{model}_{args.DATASET}_reps_{args.REP}_folds_{args.N_SPLITS}_epochs_{args.EPOCHS}_{now}"
+    experiment_short = "WithoutNF" if args.EXPERIMENT == "without_node_features" else "WithNF"
+
+    parent_dir_info = f"{model}_{args.DATASET}_{experiment_short}_reps_{args.REP}_folds_{args.N_SPLITS}_epochs_{args.EPOCHS}_{now}"
     parent_dir = create_parent_dir(parent_dir=args.PARENT_DIR, parent_dir_info=parent_dir_info)
 
     overall_performances = []
