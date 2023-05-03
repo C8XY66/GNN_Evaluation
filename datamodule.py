@@ -4,15 +4,25 @@ from typing import Optional
 from sklearn.model_selection import StratifiedKFold
 
 import torch
+import torch_geometric.transforms as T
 from torch_geometric.datasets import TUDataset
 from torch_geometric.loader import DataLoader
 import pytorch_lightning as pl
 
 
 class GraphDataModule(pl.LightningDataModule):
-    def __init__(self, dataset_name, n_splits=10, fold=0, seed=None, num_workers=0):
+    def __init__(self, dataset_name: str, dataset_type: str, experiment: str,
+                 n_splits=10, fold=0, seed=None, num_workers=0):
         super().__init__()
+        assert dataset_type in ['social', 'chemical'], "Invalid model_type. Must be either 'social' or 'chemical'."
+        assert experiment in ['with_node_features', 'without_node_features'], \
+            "Invalid experiment. Must be either 'with_node_features' or 'without_node_features'."
+
+        self.dataset, self.batch_size, self.skf, self.splits = None
+        self.train_dataset, self.val_dataset, self.test_dataset = None
         self.dataset_name = dataset_name
+        self.dataset_type = dataset_type
+        self.experiment = experiment
         self.n_splits = n_splits
         self.fold = fold
         self.seed = seed
@@ -23,8 +33,9 @@ class GraphDataModule(pl.LightningDataModule):
             torch.manual_seed(self.seed)
             np.random.seed(self.seed)
 
-        self.dataset = TUDataset(root='data/TUDataset', name=self.dataset_name)
-        # self.dataset = self.dataset[:1000] #for quick experiments
+        self.dataset = TUDataset(root='data/TUDataset', name=self.dataset_name,
+                                 pre_transform=T.OneHotDegree(135) if self.dataset_type == "social" else None)
+
         self.skf = StratifiedKFold(n_splits=self.n_splits)
 
     def setup(self, stage: Optional[str] = None, fold: int = 0, batch_size: int = 32):
