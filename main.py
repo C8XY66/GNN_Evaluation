@@ -24,20 +24,24 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pytorch_lightnin
 warnings.filterwarnings("ignore", category=UserWarning, module="optuna.trial")
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--MODEL', type=str, default='GIN', help='name of model (default: GIN)')
+parser.add_argument('--EXPERIMENT', type=str, default='with_node_features',
+                    help="type of experiment: with_node_features, without_node_features (default: with_node_features)")
+parser.add_argument('--MODEL', type=str, default='GIN', help='name of model: GIN, DGCNN, MLP (default: GIN)')
 parser.add_argument('--DATASET', type=str, default='NCI1', help='name of dataset (default: NCI1)')
 parser.add_argument('--N_SPLITS', type=int, default=2, help='number of folds dataset is split into')
 parser.add_argument('--REP', type=int, default=1, help='number of total repetitions')
 parser.add_argument('--EPOCHS', type=int, default=5, help='number of epochs to train each trial of fold ')
 parser.add_argument('--STARTING_REP', type=int, default=0, help='from which repetition to start (default: 0)')
 parser.add_argument('--STARTING_FOLD', type=int, default=0, help='from which fold to start (default: 0)')
-parser.add_argument('--PARENT_DIR', type=str, default=None, help="name of parent directory for resuming interrupted "
-                                                                 "run (default: None). Use format like "
-                                                                 "'/Users/johanna/PycharmProjects/logs/NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00'")
+parser.add_argument('--PARENT_DIR', type=str, default=None,
+                    help="name of parent directory for resuming interrupted run (default: None). Use format like "
+                         "'/Users/johanna/PycharmProjects/logs/NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00'")
 args = parser.parse_args()
 
 # Check if inputs are valid
-if args.MODEL not in ['GIN', 'DGCNN']:
+if args.EXPERIMENT not in ['with_node_features', 'without_node_features']:
+    raise ValueError("Model name must be 'GIN' or 'DGCNN'")
+if args.MODEL not in ['GIN', 'DGCNN', 'MLP']:
     raise ValueError("Model name must be 'GIN' or 'DGCNN'")
 if args.DATASET not in ['NCI1', 'Proteins', 'D&D', 'COLLAB', 'IMDB-B']:
     raise ValueError("Dataset name must be one of the following: 'NCI1', 'Proteins', 'D&D', 'COLLAB', 'IMDB-B'")
@@ -50,16 +54,24 @@ PARENT_DIR = args.PARENT_DIR
 
 
 if __name__ == '__main__':
+    # Experiment Setup
+    experiment = args.EXPERIMENT
+    model = args.MODEL
+    dataset_type = 'chemical' if args.DATASET in ['NCI1', 'Proteins', 'D&D'] \
+        else 'social' if args.DATASET in ['COLLAB', 'IMDB-B'] else None
+
     # Log folder with current timestamp
     now = datetime.datetime.now(pytz.timezone('Europe/Zurich')).strftime("%Y-%m-%d_%H-%M")
-    parent_dir_info = f"{args.MODEL}_{args.DATASET}_reps_{args.REP}_folds_{args.N_SPLITS}_epochs_{args.EPOCHS}_{now}"
+    parent_dir_info = f"{model}_{args.DATASET}_reps_{args.REP}_folds_{args.N_SPLITS}_epochs_{args.EPOCHS}_{now}"
     parent_dir = create_parent_dir(PARENT_DIR, parent_dir_info)
 
     overall_performances = []
 
+    # Experiment Loop
     for r in range(args.STARTING_REP, args.REP):
         seed = r + 1  # Set a new seed for each repetition
-        datamodule = GraphDataModule(dataset_name=args.DATASET, seed=seed)
+        datamodule = GraphDataModule(dataset_name=args.DATASET, dataset_type=dataset_type,
+                                     experiment=experiment, seed=seed)
         datamodule.prepare_data()
         fold_performances = []
 
@@ -78,9 +90,10 @@ if __name__ == '__main__':
             datamodule.setup("fit", fold)
 
             # Set number of trials according to number of hyperparameters to optimise per model
-            n_trials = 2 if args.MODEL == "GIN" else 2 if args.MODEL == "DGCNN" else None
-            study.optimize(lambda trial: objective(trial, datamodule, log_dir, args.EPOCHS,
-                                                   model_name=args.MODEL), n_trials=n_trials)
+            # n_trials = 2 if model == "GIN" else 2 if model == "DGCNN" else None
+            study.optimize(lambda trial: objective(trial=trial, datamodule=datamodule, log_dir=log_dir,
+                                                   epochs=args.EPOCHS, model_name=model, dataset_type=dataset_type),
+                           n_trials=2)
 
             print(f"Best trial for fold {fold}: {study.best_trial.value}")
 

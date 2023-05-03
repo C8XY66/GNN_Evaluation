@@ -48,7 +48,7 @@ def create_trainer(log_dir, epochs, pruning_callback=None, testing=False, trial=
     return trainer
 
 
-def objective(trial, datamodule, log_dir, epochs, model_name):
+def objective(trial, datamodule, log_dir, epochs, model_name, dataset_type):
     config_file = f"config_{model_name}.yaml"
     config = load_config(config_file)
 
@@ -61,10 +61,6 @@ def objective(trial, datamodule, log_dir, epochs, model_name):
         else:
             hyperparameters[param] = values
 
-    # hidden_channels = trial.suggest_categorical('hidden_channels', [16, 32])
-    # batch_size = trial.suggest_categorical('batch_size', [32, 128])
-    # dropout = trial.suggest_categorical('dropout', [0.0, 0.5])
-
     # Model and DataModule
     datamodule.setup(fold=0, batch_size=hyperparameters['batch_size'])
     model = GNNModel(gnn_model_name=model_name,
@@ -73,7 +69,8 @@ def objective(trial, datamodule, log_dir, epochs, model_name):
                      hidden_channels=hyperparameters['hidden_channels'],
                      num_layers=hyperparameters['num_layers'],
                      dropout=hyperparameters['dropout'],
-                     learning_rate=hyperparameters['learning_rate'])
+                     learning_rate=hyperparameters['learning_rate'],
+                     dataset_type=dataset_type)
 
     # Training
     pruning_callback = PyTorchLightningPruningCallback(trial, monitor="val_acc")  # from optuna-pl-integration
