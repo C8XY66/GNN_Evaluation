@@ -11,6 +11,7 @@ dropout:
 hidden_channels:
   - 16
   - 32
+  - 64
 num_layers:
   - 5
 
