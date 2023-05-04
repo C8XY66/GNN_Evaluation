@@ -20,7 +20,7 @@ def create_trainer(log_dir, epochs, pruning_callback=None, testing=False, trial=
     if not testing:
 
         # Training Callbacks
-        early_stopping = EarlyStopping(monitor="val_acc", mode="max", patience=10, verbose=True)
+        early_stopping = EarlyStopping(monitor="val_acc", mode="max", patience=50, verbose=True)
         callbacks.append(early_stopping)
 
         model_checkpoint = ModelCheckpoint(dirpath=os.path.join(log_dir, "checkpoints"),
@@ -79,9 +79,18 @@ def objective(trial, datamodule, log_dir, epochs, model_name, dataset_type):
                              trial=trial)
 
     hyperparameters = dict(hidden_channels=hyperparameters["hidden_channels"], batch_size=hyperparameters["batch_size"],
-                           epochs=epochs, dropout=hyperparameters["dropout"])
+                           epochs=epochs, dropout=hyperparameters["dropout"],
+                           learning_rate=hyperparameters["learning_rate"])
     trainer.logger.log_hyperparams(hyperparameters)
     trainer.fit(model=model, datamodule=datamodule)
+
+    # Print training and validation accuracies and losses
+    train_acc = trainer.callback_metrics['train_acc']
+    train_loss = trainer.callback_metrics['train_loss']
+    val_acc = trainer.callback_metrics['val_acc']
+    val_loss = trainer.callback_metrics['val_loss']
+    print(
+        f"Trial: {trial.number}, Train Accuracy: {train_acc:.4f}, Train Loss: {train_loss:.4f}, Val Accuracy: {val_acc:.4f}, Val Loss: {val_loss:.4f}\n")
 
     return trainer.callback_metrics["val_acc"].item()
 
