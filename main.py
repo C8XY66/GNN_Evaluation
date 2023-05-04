@@ -27,7 +27,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--EXPERIMENT", type=str, default='with_node_features',
                     help="type of experiment: with_node_features, without_node_features (default: with_node_features)")
 parser.add_argument("--MODEL", type=str, default="GIN", help="name of model: GIN, DGCNN, MLP (default: GIN)")
-parser.add_argument("--DATASET", type=str, default="NCI1", help="name of dataset (default: NCI1)")
+parser.add_argument("--DATASET", type=str, default="MUTAG", help="name of dataset (default: MUTAG)")
 parser.add_argument("--N_SPLITS", type=int, default=10, help="number of folds dataset is split into")
 parser.add_argument("--REP", type=int, default=1, help="number of total repetitions")
 parser.add_argument("--EPOCHS", type=int, default=300, help="number of epochs to train each trial of fold")
@@ -43,8 +43,8 @@ if args.EXPERIMENT not in ["with_node_features", "without_node_features"]:
     raise ValueError("Experiment must be 'with_node_features' or 'without_node_features'")
 if args.MODEL not in ["GIN", "DGCNN", "MLP"]:
     raise ValueError("Model name must be 'GIN' or 'DGCNN'")
-if args.DATASET not in ["NCI1", "PROTEINS", "DD", "COLLAB", "IMDB-BINARY"]:
-    raise ValueError("Dataset name must be one of the following: 'NCI1', 'PROTEINS', 'DD', 'COLLAB', 'IMDB-BINARY'")
+if args.DATASET not in ["MUTAG", "NCI1", "PROTEINS", "COLLAB", "IMDB-BINARY"]:
+    raise ValueError("Dataset name must be one of the following: 'MUTAG', 'NCI1', 'PROTEINS', 'COLLAB', 'IMDB-BINARY'")
 if args.PARENT_DIR is not None and not os.path.isdir(args.PARENT_DIR):
     raise ValueError("Invalid directory, should be of format: "
                      "'/Users/johanna/PycharmProjects/logs/GIN_NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00' ")
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # Experiment Setup
     experiment = args.EXPERIMENT
     model = args.MODEL
-    dataset_type = "chemical" if args.DATASET in ["NCI1", "PROTEINS", "DD"] \
+    dataset_type = "chemical" if args.DATASET in [ "MUTAG", "NCI1", "PROTEINS"] \
         else "social" if args.DATASET in ["COLLAB", "IMDB-BINARY"] else None
 
     # Log folder with current timestamp
