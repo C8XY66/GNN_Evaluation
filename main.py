@@ -28,9 +28,9 @@ parser.add_argument("--EXPERIMENT", type=str, default='with_node_features',
                     help="type of experiment: with_node_features, without_node_features (default: with_node_features)")
 parser.add_argument("--MODEL", type=str, default="GIN", help="name of model: GIN, DGCNN, MLP (default: GIN)")
 parser.add_argument("--DATASET", type=str, default="NCI1", help="name of dataset (default: NCI1)")
-parser.add_argument("--N_SPLITS", type=int, default=2, help="number of folds dataset is split into")
+parser.add_argument("--N_SPLITS", type=int, default=10, help="number of folds dataset is split into")
 parser.add_argument("--REP", type=int, default=1, help="number of total repetitions")
-parser.add_argument("--EPOCHS", type=int, default=5, help="number of epochs to train each trial of fold")
+parser.add_argument("--EPOCHS", type=int, default=300, help="number of epochs to train each trial of fold")
 parser.add_argument("--STARTING_REP", type=int, default=0, help="from which repetition to start (default: 0)")
 parser.add_argument("--STARTING_FOLD", type=int, default=0, help="from which fold to start (default: 0)")
 parser.add_argument("--PARENT_DIR", type=str, default=None,
@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
             study.optimize(lambda trial: objective(trial=trial, datamodule=datamodule, log_dir=log_dir,
                                                    epochs=args.EPOCHS, model_name=model, dataset_type=dataset_type),
-                           n_trials=2)
+                           n_trials=8)
 
             print(f"Best trial for fold {fold}: {study.best_trial.value}")
 
