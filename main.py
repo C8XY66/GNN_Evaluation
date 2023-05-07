@@ -5,7 +5,6 @@ from training import create_trainer, objective
 
 import datetime
 import pytz
-
 import os
 import argparse
 import numpy as np
@@ -30,7 +29,7 @@ parser.add_argument("--MODEL", type=str, default="GIN", help="name of model: GIN
 parser.add_argument("--DATASET", type=str, default="MUTAG", help="name of dataset (default: MUTAG)")
 parser.add_argument("--N_SPLITS", type=int, default=10, help="number of folds dataset is split into")
 parser.add_argument("--REP", type=int, default=1, help="number of total repetitions")
-parser.add_argument("--EPOCHS", type=int, default=300, help="number of epochs to train each trial of fold")
+parser.add_argument("--EPOCHS", type=int, default=500, help="number of epochs to train each trial of fold")
 parser.add_argument("--STARTING_REP", type=int, default=0, help="from which repetition to start (default: 0)")
 parser.add_argument("--STARTING_FOLD", type=int, default=0, help="from which fold to start (default: 0)")
 parser.add_argument("--PARENT_DIR", type=str, default=None,
@@ -89,13 +88,14 @@ if __name__ == "__main__":
                                         # load_if_exists=True
                                         )
 
-            datamodule.setup(stage="train", fold=fold)
+            datamodule.setup(fold=fold)
 
             study.optimize(lambda trial: objective(trial=trial, datamodule=datamodule, log_dir=log_dir,
                                                    epochs=args.EPOCHS, model_name=model, dataset_type=dataset_type),
-                           n_trials=8)
+                           n_trials=6)
 
-            print(f"Best trial for fold {fold}: {study.best_trial.value}")
+            print(f"Best trial for fold {fold}: Trial {study.best_trial.number} "
+                  f"with Val Accuracy {study.best_trial.value:.4f}")
 
             # Load the model with the best hyperparameters
             checkpoint_name = f"model_trial_{study.best_trial.number}.ckpt"
@@ -106,7 +106,6 @@ if __name__ == "__main__":
             best_model.load_state_dict(checkpoint["state_dict"])
 
             # Test the best model
-            datamodule.setup(stage="test", fold=fold)
             trainer = create_trainer(log_dir=log_dir, epochs=args.EPOCHS, testing=True)
             test_result = trainer.test(model=best_model, datamodule=datamodule)
             test_acc = test_result[0]["test_acc"]

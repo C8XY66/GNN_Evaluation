@@ -20,7 +20,7 @@ def create_trainer(log_dir, epochs, pruning_callback=None, testing=False, trial=
     if not testing:
 
         # Training Callbacks
-        early_stopping = EarlyStopping(monitor="val_acc", mode="max", patience=50, verbose=True)
+        early_stopping = EarlyStopping(monitor="val_acc", mode="max", patience=200, verbose=True)
         callbacks.append(early_stopping)
 
         model_checkpoint = ModelCheckpoint(dirpath=os.path.join(log_dir, "checkpoints"),
@@ -62,7 +62,7 @@ def objective(trial, datamodule, log_dir, epochs, model_name, dataset_type):
             hyperparameters[param] = values
 
     # Model and DataModule
-    datamodule.setup(fold=0, batch_size=hyperparameters["batch_size"])
+    datamodule.update_batch_size(hyperparameters["batch_size"])
     model = GNNModel(gnn_model_name=model_name,
                      in_channels=datamodule.num_node_features,
                      out_channels=datamodule.num_classes,
@@ -90,7 +90,8 @@ def objective(trial, datamodule, log_dir, epochs, model_name, dataset_type):
     val_acc = trainer.callback_metrics['val_acc']
     val_loss = trainer.callback_metrics['val_loss']
     print(
-        f"Trial: {trial.number}, Train Accuracy: {train_acc:.4f}, Train Loss: {train_loss:.4f}, Val Accuracy: {val_acc:.4f}, Val Loss: {val_loss:.4f}\n")
+        f"Trial: {trial.number}, Train Accuracy: {train_acc:.4f}, Train Loss: {train_loss:.4f}, Val Accuracy: "
+        f"{val_acc:.4f}, Val Loss: {val_loss:.4f}\n")
 
     return trainer.callback_metrics["val_acc"].item()
 

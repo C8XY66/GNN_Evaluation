@@ -1,5 +1,4 @@
 
-import os
 import numpy as np
 from typing import Optional
 from sklearn.model_selection import StratifiedKFold
@@ -61,9 +60,11 @@ class GraphDataModule(pl.LightningDataModule):
         self.skf = StratifiedKFold(n_splits=self.n_splits, shuffle=False)
         self.splits = list(self.skf.split(torch.zeros(len(y)), y))
 
-    def setup(self, stage: Optional[str] = None, fold: int = 0, batch_size: int = 32):
+    def setup(self, fold=None, stage: Optional[str] = None):
+        if stage is not None:
+            return
+
         self.fold = fold
-        self.batch_size = batch_size
 
         train_indices, test_indices = self.splits[self.fold]
         train_dataset = [self.dataset[i] for i in train_indices]
@@ -75,6 +76,9 @@ class GraphDataModule(pl.LightningDataModule):
         self.train_dataset, self.val_dataset = torch.utils.data.random_split(train_dataset, [num_train, num_val],
                                                                              generator=generator)
         self.test_dataset = [self.dataset[i] for i in test_indices]
+
+    def update_batch_size(self, batch_size):
+        self.batch_size = batch_size
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
