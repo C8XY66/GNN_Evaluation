@@ -2,6 +2,7 @@ import os
 import csv
 
 MAIN_DIR = "/Users/johanna/PycharmProjects/"
+#MAIN_DIR = "/storage/homefs/js12m770/"
 
 
 def create_parent_dir(parent_dir, parent_dir_info):
