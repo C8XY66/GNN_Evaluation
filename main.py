@@ -28,13 +28,17 @@ parser.add_argument("--EXPERIMENT", type=str, default='with_node_features',
 parser.add_argument("--MODEL", type=str, default="GIN", help="name of model: GIN, DGCNN, MLP (default: GIN)")
 parser.add_argument("--DATASET", type=str, default="MUTAG", help="name of dataset (default: MUTAG)")
 parser.add_argument("--N_SPLITS", type=int, default=10, help="number of folds dataset is split into")
-parser.add_argument("--REP", type=int, default=1, help="number of total repetitions")
+parser.add_argument("--REPS", type=int, default=1, help="number of total repetitions")
 parser.add_argument("--EPOCHS", type=int, default=500, help="number of epochs to train each trial of fold")
+parser.add_argument("--PATIENCE", type=int, default=250, help="patience for early stopping monitoring val_acc")
+parser.add_argument("--TRIALS", type=int, default=8, help="number of trials for hyperparameter optimization")
 parser.add_argument("--STARTING_REP", type=int, default=0, help="from which repetition to start (default: 0)")
 parser.add_argument("--STARTING_FOLD", type=int, default=0, help="from which fold to start (default: 0)")
+parser.add_argument("--MAIN_DIR", type=str, default="/Users/johanna/PycharmProjects/",
+                    help="main directory of project, where logs are saved")
 parser.add_argument("--PARENT_DIR", type=str, default=None,
                     help="name of parent directory for resuming interrupted run (default: None). Use format like "
-                         "'/Users/johanna/PycharmProjects/logs/NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00'")
+                         "'/Users/johanna/PycharmProjects/logs/GIN_NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00'")
 args = parser.parse_args()
 
 # Check if inputs are valid
@@ -63,13 +67,13 @@ if __name__ == "__main__":
     now = datetime.datetime.now(pytz.timezone("Europe/Zurich")).strftime("%Y-%m-%d_%H-%M")
     experiment_short = "WithoutNF" if args.EXPERIMENT == "without_node_features" else "WithNF"
 
-    parent_dir_info = f"{model}_{args.DATASET}_{experiment_short}_reps_{args.REP}_folds_{args.N_SPLITS}_epochs_{args.EPOCHS}_{now}"
-    parent_dir = create_parent_dir(parent_dir=args.PARENT_DIR, parent_dir_info=parent_dir_info)
+    parent_dir_info = f"{model}_{args.DATASET}_{experiment_short}_reps_{args.REPS}_folds_{args.N_SPLITS}_epochs_{args.EPOCHS}_{now}"
+    parent_dir = create_parent_dir(parent_dir=args.PARENT_DIR, parent_dir_info=parent_dir_info, main_dir=args.MAIN_DIR)
 
     overall_performances = []
 
     # Experiment Loop
-    for r in range(args.STARTING_REP, args.REP):
+    for r in range(args.STARTING_REP, args.REPS):
         seed = r + 1  # Set a new seed for each repetition
         datamodule = GraphDataModule(dataset_name=args.DATASET, dataset_type=dataset_type,
                                      experiment=experiment, seed=seed)
@@ -91,8 +95,8 @@ if __name__ == "__main__":
             datamodule.setup(fold=fold)
 
             study.optimize(lambda trial: objective(trial=trial, datamodule=datamodule, log_dir=log_dir,
-                                                   epochs=args.EPOCHS, model_name=model, dataset_type=dataset_type),
-                           n_trials=6)
+                                                   epochs=args.EPOCHS, patience=args.PATIENCE, model_name=model,
+                                                   dataset_type=dataset_type), n_trials=args.TRIALS)
 
             print(f"Best trial for fold {fold}: Trial {study.best_trial.number} "
                   f"with Val Accuracy {study.best_trial.value:.4f}")
@@ -106,7 +110,7 @@ if __name__ == "__main__":
             best_model.load_state_dict(checkpoint["state_dict"])
 
             # Test the best model
-            trainer = create_trainer(log_dir=log_dir, epochs=args.EPOCHS, testing=True)
+            trainer = create_trainer(log_dir=log_dir, epochs=args.EPOCHS, patience=args.PATIENCE, testing=True)
             test_result = trainer.test(model=best_model, datamodule=datamodule)
             test_acc = test_result[0]["test_acc"]
             print(f"Test accuracy for fold {fold}: {test_acc}")

@@ -1,14 +1,11 @@
 import os
 import csv
 
-MAIN_DIR = "/Users/johanna/PycharmProjects/"
-#MAIN_DIR = "/storage/homefs/js12m770/"
 
-
-def create_parent_dir(parent_dir, parent_dir_info):
+def create_parent_dir(parent_dir, parent_dir_info, main_dir):
     # Parent directory
     if parent_dir is None:
-        parent_dir = f"{MAIN_DIR}logs/{parent_dir_info}"
+        parent_dir = f"{main_dir}logs/{parent_dir_info}"
         if not os.path.exists(parent_dir):
             os.makedirs(parent_dir)
     return parent_dir

@@ -14,13 +14,13 @@ def load_config(config_file):
     return config
 
 
-def create_trainer(log_dir, epochs, pruning_callback=None, testing=False, trial=None):
+def create_trainer(log_dir, epochs, patience, pruning_callback=None, testing=False, trial=None):
     callbacks = []
 
     if not testing:
 
         # Training Callbacks
-        early_stopping = EarlyStopping(monitor="val_acc", mode="max", patience=200, verbose=True)
+        early_stopping = EarlyStopping(monitor="val_acc", mode="max", patience=patience, verbose=True)
         callbacks.append(early_stopping)
 
         model_checkpoint = ModelCheckpoint(dirpath=os.path.join(log_dir, "checkpoints"),
@@ -48,7 +48,7 @@ def create_trainer(log_dir, epochs, pruning_callback=None, testing=False, trial=
     return trainer
 
 
-def objective(trial, datamodule, log_dir, epochs, model_name, dataset_type):
+def objective(trial, datamodule, log_dir, epochs, patience, model_name, dataset_type):
     config_file = f"config_{model_name}.yaml"
     config = load_config(config_file=config_file)
 
@@ -74,7 +74,7 @@ def objective(trial, datamodule, log_dir, epochs, model_name, dataset_type):
 
     # Training
     pruning_callback = PyTorchLightningPruningCallback(trial=trial, monitor="val_acc")  # from optuna-pl-integration
-    trainer = create_trainer(log_dir=log_dir, epochs=epochs,
+    trainer = create_trainer(log_dir=log_dir, epochs=epochs, patience=patience,
                              pruning_callback=pruning_callback,
                              trial=trial)
 
