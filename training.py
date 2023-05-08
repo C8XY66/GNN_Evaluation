@@ -82,6 +82,7 @@ def objective(trial, datamodule, log_dir, epochs, patience, model_name, dataset_
                      num_layers=hyperparameters["num_layers"],
                      dropout=hyperparameters["dropout"],
                      learning_rate=hyperparameters["learning_rate"],
+                     weight_decay=hyperparameters["weight_decay"],
                      dataset_type=dataset_type)
 
     # Training

@@ -13,5 +13,9 @@ num_layers:
   - 1
 dropout:
   - 0.0
+weight_decay:
+  - 0.01
+  - 0.001
+  - 0.0001
 
 

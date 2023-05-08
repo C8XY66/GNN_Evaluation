@@ -127,9 +127,10 @@ class MLPModel(torch.nn.Module):
 # General GNN
 class GNNModel(pl.LightningModule):
     def __init__(self, gnn_model_name, in_channels: int, out_channels: int, hidden_channels: int, num_layers: int,
-                 dropout: float, learning_rate: float, dataset_type: str):
+                 dropout: float, learning_rate: float, weight_decay: float, dataset_type: str):
         super().__init__()
         self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
         self.gnn_model_name = gnn_model_name
         self.save_hyperparameters()
 
@@ -153,28 +154,29 @@ class GNNModel(pl.LightningModule):
 
     def training_step(self, data, batch_idx):
         y_hat = self(data.x, data.edge_index, data.batch)
-        loss = F.cross_entropy(y_hat, data.y)
+        train_loss = F.cross_entropy(y_hat, data.y)
         self.train_acc(y_hat.softmax(dim=-1), data.y)
-        self.log("train_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
-        self.log("train_acc", self.train_acc, prog_bar=True, on_step=False, on_epoch=True)
-        return loss
+        self.log("train_loss", train_loss, on_step=False, on_epoch=True)
+        self.log("train_acc", self.train_acc, on_step=False, on_epoch=True)
+
+        return train_loss
 
     def validation_step(self, data, batch_idx):
         y_hat = self(data.x, data.edge_index, data.batch)
-        loss = F.cross_entropy(y_hat, data.y)
+        val_loss = F.cross_entropy(y_hat, data.y)
         self.val_acc(y_hat.softmax(dim=-1), data.y)
-        self.log("val_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
-        self.log("val_acc", self.val_acc, prog_bar=True, on_step=False, on_epoch=True)
+        self.log("val_loss", val_loss, on_step=False, on_epoch=True)
+        self.log("val_acc", self.val_acc, on_step=False, on_epoch=True)
 
     def test_step(self, data, batch_idx):
         y_hat = self(data.x, data.edge_index, data.batch)
-        loss = F.cross_entropy(y_hat, data.y)
+        test_loss = F.cross_entropy(y_hat, data.y)
         self.test_acc(y_hat.softmax(dim=-1), data.y)
-        self.log("test_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
-        self.log("test_acc", self.test_acc, prog_bar=True, on_step=False, on_epoch=True)
+        self.log("test_loss", test_loss)
+        self.log("test_acc", self.test_acc)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), self.learning_rate)
+        optimizer = torch.optim.Adam(self.parameters(), self.learning_rate, weight_decay=self.weight_decay)
 
         if self.gnn_model_name == "GIN":
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
