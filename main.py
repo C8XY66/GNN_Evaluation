@@ -21,6 +21,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pytorch_lightnin
 warnings.filterwarnings("ignore", category=UserWarning, module="pytorch_lightning.utilities")
 warnings.filterwarnings("ignore", category=UserWarning, module="pytorch_lightning.trainer")
 warnings.filterwarnings("ignore", category=UserWarning, module="optuna.trial")
+warnings.filterwarnings("ignore", category=UserWarning)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--EXPERIMENT", type=str, default='with_node_features',
@@ -29,8 +30,8 @@ parser.add_argument("--MODEL", type=str, default="GIN", help="name of model: GIN
 parser.add_argument("--DATASET", type=str, default="MUTAG", help="name of dataset (default: MUTAG)")
 parser.add_argument("--N_SPLITS", type=int, default=10, help="number of folds dataset is split into")
 parser.add_argument("--REPS", type=int, default=1, help="number of total repetitions")
-parser.add_argument("--EPOCHS", type=int, default=500, help="number of epochs to train each trial of fold")
-parser.add_argument("--PATIENCE", type=int, default=250, help="patience for early stopping monitoring val_acc")
+parser.add_argument("--EPOCHS", type=int, default=1000, help="number of epochs to train each trial of fold")
+parser.add_argument("--PATIENCE", type=int, default=200, help="patience for early stopping monitoring val_acc")
 parser.add_argument("--TRIALS", type=int, default=8, help="number of trials for hyperparameter optimization")
 parser.add_argument("--STARTING_REP", type=int, default=0, help="from which repetition to start (default: 0)")
 parser.add_argument("--STARTING_FOLD", type=int, default=0, help="from which fold to start (default: 0)")
@@ -67,7 +68,8 @@ if __name__ == "__main__":
     now = datetime.datetime.now(pytz.timezone("Europe/Zurich")).strftime("%Y-%m-%d_%H-%M")
     experiment_short = "WithoutNF" if args.EXPERIMENT == "without_node_features" else "WithNF"
 
-    parent_dir_info = f"{model}_{args.DATASET}_{experiment_short}_reps_{args.REPS}_folds_{args.N_SPLITS}_epochs_{args.EPOCHS}_{now}"
+    parent_dir_info = f"{model}_{args.DATASET}_{experiment_short}_reps_{args.REPS}_folds_{args.N_SPLITS}" \
+                      f"_epochs_{args.EPOCHS}_pat_{args.PATIENCE}_{now}"
     parent_dir = create_parent_dir(parent_dir=args.PARENT_DIR, parent_dir_info=parent_dir_info, main_dir=args.MAIN_DIR)
 
     overall_performances = []
@@ -85,11 +87,9 @@ if __name__ == "__main__":
             log_dir = create_sub_dir(parent_dir=parent_dir, repetition_index=r, fold_index=fold)
             # Create a new study object for each fold
             study = optuna.create_study(direction="maximize",
-                                        pruner=optuna.pruners.MedianPruner(),
+                                        pruner=optuna.pruners.MedianPruner(n_startup_trials=50),
                                         sampler=optuna.samplers.TPESampler(seed=42),
-                                        study_name=f"rep_{r}_fold_{fold}",
-                                        # storage=f"sqlite:///{log_dir}/rep_{r}_fold_{fold}_optuna.db",
-                                        # load_if_exists=True
+                                        study_name=f"rep_{r}_fold_{fold}"
                                         )
 
             datamodule.setup(fold=fold)
@@ -110,7 +110,7 @@ if __name__ == "__main__":
             best_model.load_state_dict(checkpoint["state_dict"])
 
             # Test the best model
-            trainer = create_trainer(log_dir=log_dir, epochs=args.EPOCHS, patience=args.PATIENCE, testing=True)
+            trainer = create_trainer(log_dir=log_dir, epochs=args.EPOCHS, testing=True)
             test_result = trainer.test(model=best_model, datamodule=datamodule)
             test_acc = test_result[0]["test_acc"]
             print(f"Test accuracy for fold {fold}: {test_acc}")
