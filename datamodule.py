@@ -1,4 +1,5 @@
 
+import os
 import numpy as np
 from typing import Optional
 from sklearn.model_selection import StratifiedKFold
@@ -25,7 +26,7 @@ class CustomInMemoryDataset(InMemoryDataset):
 
 class GraphDataModule(pl.LightningDataModule):
     def __init__(self, dataset_name: str, dataset_type: str, experiment: str,
-                 n_splits=10, fold=0, seed=None, num_workers=0):
+                 n_splits=10, fold=0, seed=None, num_workers=os.cpu_count()):
         super().__init__()
 
         self.dataset_name = dataset_name
@@ -48,7 +49,6 @@ class GraphDataModule(pl.LightningDataModule):
         if self.experiment == "without_node_features":
             neutralized_data_list = [self.neutralize_node_features(data) for data in self.dataset]
             self.dataset = CustomInMemoryDataset(neutralized_data_list)
-        # self.dataset = self.dataset[:1000] #for quick experiments
 
         # Shuffle dataset based on seed
         indices = torch.randperm(len(self.dataset), generator=torch.Generator().manual_seed(self.seed))
