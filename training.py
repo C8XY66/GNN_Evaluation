@@ -14,7 +14,17 @@ def load_config(config_file):
     return config
 
 
-def create_trainer(log_dir, epochs, patience, pruning_callback=None, testing=False, trial=None):
+class StoppedEpochCallback(pl.Callback):
+    def __init__(self, early_stopping_callback: pl.callbacks.EarlyStopping):
+        super().__init__()
+        self.early_stopping_callback = early_stopping_callback
+
+    def on_train_end(self, trainer, pl_module):
+        stopped_epoch = self.early_stopping_callback.stopped_epoch
+        trainer.logger.experiment.add_scalar("stopped_epoch", stopped_epoch, global_step=trainer.global_step)
+
+
+def create_trainer(log_dir, epochs, patience=None, pruning_callback=None, testing=False, trial=None):
     callbacks = []
 
     if not testing:
@@ -22,6 +32,9 @@ def create_trainer(log_dir, epochs, patience, pruning_callback=None, testing=Fal
         # Training Callbacks
         early_stopping = EarlyStopping(monitor="val_acc", mode="max", patience=patience, verbose=True)
         callbacks.append(early_stopping)
+
+        stopped_epoch_callback = StoppedEpochCallback(early_stopping)
+        callbacks.append(stopped_epoch_callback)
 
         model_checkpoint = ModelCheckpoint(dirpath=os.path.join(log_dir, "checkpoints"),
                                            filename=f"model_trial_{trial.number}",
@@ -39,7 +52,6 @@ def create_trainer(log_dir, epochs, patience, pruning_callback=None, testing=Fal
     trainer = pl.Trainer(
         callbacks=callbacks,
         max_epochs=epochs,
-        log_every_n_steps=5,
         logger=TensorBoardLogger(save_dir=log_dir),
         enable_progress_bar=False,
         enable_model_summary=False,
@@ -73,10 +85,9 @@ def objective(trial, datamodule, log_dir, epochs, patience, model_name, dataset_
                      dataset_type=dataset_type)
 
     # Training
-    pruning_callback = PyTorchLightningPruningCallback(trial=trial, monitor="val_acc")  # from optuna-pl-integration
+    pruning_callback = PyTorchLightningPruningCallback(trial=trial, monitor="val_acc")
     trainer = create_trainer(log_dir=log_dir, epochs=epochs, patience=patience,
-                             pruning_callback=pruning_callback,
-                             trial=trial)
+                             pruning_callback=pruning_callback, trial=trial)
 
     hyperparameters = dict(hidden_channels=hyperparameters["hidden_channels"], batch_size=hyperparameters["batch_size"],
                            epochs=epochs, dropout=hyperparameters["dropout"],
