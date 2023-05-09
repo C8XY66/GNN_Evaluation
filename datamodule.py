@@ -1,5 +1,4 @@
 
-import os
 import numpy as np
 from typing import Optional
 from sklearn.model_selection import StratifiedKFold
@@ -26,7 +25,7 @@ class CustomInMemoryDataset(InMemoryDataset):
 
 class GraphDataModule(pl.LightningDataModule):
     def __init__(self, dataset_name: str, dataset_type: str, experiment: str,
-                 n_splits=10, fold=0, seed=None, num_workers=os.cpu_count()):
+                 n_splits=10, fold=0, seed=None):
         super().__init__()
 
         self.dataset_name = dataset_name
@@ -35,7 +34,6 @@ class GraphDataModule(pl.LightningDataModule):
         self.n_splits = n_splits
         self.fold = fold
         self.seed = seed
-        self.num_workers = num_workers
 
     def prepare_data(self):
         if self.seed is not None:
@@ -81,13 +79,13 @@ class GraphDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
+        return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
+        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
 
     @staticmethod
     def neutralize_node_features(data):
