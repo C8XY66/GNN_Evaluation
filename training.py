@@ -14,17 +14,6 @@ def load_config(config_file):
     return config
 
 
-class BestValAcc(Callback):
-    def __init__(self, logger):
-        super().__init__()
-        self.logger = logger
-
-    def on_validation_end(self, trainer, pl_module):
-        if trainer.checkpoint_callback.best_model_path:
-            best_val_acc = trainer.checkpoint_callback.best_model_score.item()
-            self.logger.experiment.add_scalar("best_val_acc", best_val_acc, global_step=trainer.global_step)
-
-
 def create_trainer(log_dir, epochs, patience=None, pruning_callback=None, testing=False, trial=None):
     callbacks = []
     logger = TensorBoardLogger(save_dir=log_dir)
@@ -42,9 +31,6 @@ def create_trainer(log_dir, epochs, patience=None, pruning_callback=None, testin
                                            auto_insert_metric_name=True,
                                            verbose=True)
         callbacks.append(model_checkpoint)
-
-        best_val_acc_logger = BestValAcc(logger=logger)
-        callbacks.append(best_val_acc_logger)
 
         if pruning_callback is not None:
             callbacks.append(pruning_callback)
