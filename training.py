@@ -3,7 +3,7 @@ from model import GNNModel
 import os
 import yaml
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, Callback
 from pytorch_lightning.loggers import TensorBoardLogger
 from optuna.integration import PyTorchLightningPruningCallback
 
@@ -14,27 +14,25 @@ def load_config(config_file):
     return config
 
 
-class StoppedEpochCallback(pl.Callback):
-    def __init__(self, early_stopping_callback: pl.callbacks.EarlyStopping):
+class BestValAcc(Callback):
+    def __init__(self, logger):
         super().__init__()
-        self.early_stopping_callback = early_stopping_callback
+        self.logger = logger
 
-    def on_train_end(self, trainer, pl_module):
-        stopped_epoch = self.early_stopping_callback.stopped_epoch
-        trainer.logger.experiment.add_scalar("stopped_epoch", stopped_epoch, global_step=trainer.global_step)
+    def on_validation_end(self, trainer, pl_module):
+        if trainer.checkpoint_callback.best_model_path:
+            best_val_acc = trainer.checkpoint_callback.best_model_score.item()
+            self.logger.experiment.add_scalar("best_val_acc", best_val_acc, global_step=trainer.global_step)
 
 
 def create_trainer(log_dir, epochs, patience=None, pruning_callback=None, testing=False, trial=None):
     callbacks = []
-
+    logger = TensorBoardLogger(save_dir=log_dir)
     if not testing:
 
         # Training Callbacks
-        early_stopping = EarlyStopping(monitor="val_acc", mode="max", patience=patience, verbose=True)
+        early_stopping = EarlyStopping(monitor="val_loss", mode="min", patience=patience, verbose=True)
         callbacks.append(early_stopping)
-
-        stopped_epoch_callback = StoppedEpochCallback(early_stopping)
-        callbacks.append(stopped_epoch_callback)
 
         model_checkpoint = ModelCheckpoint(dirpath=os.path.join(log_dir, "checkpoints"),
                                            filename=f"model_trial_{trial.number}",
@@ -45,6 +43,9 @@ def create_trainer(log_dir, epochs, patience=None, pruning_callback=None, testin
                                            verbose=True)
         callbacks.append(model_checkpoint)
 
+        best_val_acc_logger = BestValAcc(logger=logger)
+        callbacks.append(best_val_acc_logger)
+
         if pruning_callback is not None:
             callbacks.append(pruning_callback)
 
@@ -52,7 +53,7 @@ def create_trainer(log_dir, epochs, patience=None, pruning_callback=None, testin
     trainer = pl.Trainer(
         callbacks=callbacks,
         max_epochs=epochs,
-        logger=TensorBoardLogger(save_dir=log_dir),
+        logger=logger,
         enable_progress_bar=False,
         enable_model_summary=False,
     )
@@ -96,14 +97,9 @@ def objective(trial, datamodule, log_dir, epochs, patience, model_name, dataset_
     trainer.logger.log_hyperparams(hyperparameters)
     trainer.fit(model=model, datamodule=datamodule)
 
-    # Print training and validation accuracies and losses
-    train_acc = trainer.callback_metrics['train_acc']
-    train_loss = trainer.callback_metrics['train_loss']
-    val_acc = trainer.callback_metrics['val_acc']
-    val_loss = trainer.callback_metrics['val_loss']
-    print(
-        f"Trial: {trial.number}, Train Accuracy: {train_acc:.4f}, Train Loss: {train_loss:.4f}, Val Accuracy: "
-        f"{val_acc:.4f}, Val Loss: {val_loss:.4f}\n")
+    # Select best trial based on val_loss if val_acc is the same
+    return trainer.callback_metrics["val_acc"].item() + 1e-8 * (1 - trainer.callback_metrics["val_loss"].item())
 
-    return trainer.callback_metrics["val_acc"].item()
+
+
 
