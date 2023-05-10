@@ -124,7 +124,8 @@ if __name__ == "__main__":
         overall_performances.append(avg_performance)
 
         # Save test accuracies, average performance, and overall average performance after all folds are done
-        for fold, test_acc in enumerate(fold_performances):
+        start_fold = args.START_FOLD if r == args.START_REP else 0
+        for fold, test_acc in enumerate(fold_performances, start=start_fold):
             if fold == args.FOLDS - 1:
                 save_test_results(log_dir=parent_dir, repetition_index=r, fold_index=fold,
                                   test_acc=test_acc, avg_performance=avg_performance, overall_avg_performance=None)
