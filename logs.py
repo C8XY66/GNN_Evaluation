@@ -1,13 +1,19 @@
 import os
 import csv
+import random
 
 
 def create_parent_dir(parent_dir, parent_dir_info, main_dir):
     # Parent directory
     if parent_dir is None:
         parent_dir = f"{main_dir}logs/{parent_dir_info}"
-        if not os.path.exists(parent_dir):
-            os.makedirs(parent_dir)
+
+        if os.path.exists(parent_dir):
+            unique_id = random.randint(1, 99)
+            parent_dir = f"{parent_dir}_{unique_id}"
+
+        os.makedirs(parent_dir)
+
     return parent_dir
 
 

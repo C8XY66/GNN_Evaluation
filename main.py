@@ -66,7 +66,7 @@ if __name__ == "__main__":
         else "social" if args.DATASET in ["COLLAB", "IMDB-BINARY"] else None
 
     # Log folder with current timestamp
-    now = datetime.datetime.now(pytz.timezone("Europe/Zurich")).strftime("%Y-%m-%d_%H-%M")
+    now = datetime.datetime.now(pytz.timezone("Europe/Zurich")).strftime("%Y-%m-%d_%H-%M-%S")
     experiment_short = "WithoutNF" if args.EXPERIMENT == "without_node_features" else "WithNF"
 
     parent_dir_info = f"{model}_{args.DATASET}_{experiment_short}_reps_{args.REPS}_folds_{args.FOLDS}" \
