@@ -28,13 +28,15 @@ parser.add_argument("--EXPERIMENT", type=str, default='with_node_features',
                     help="type of experiment: with_node_features, without_node_features (default: with_node_features)")
 parser.add_argument("--MODEL", type=str, default="GIN", help="name of model: GIN, DGCNN, MLP (default: GIN)")
 parser.add_argument("--DATASET", type=str, default="MUTAG", help="name of dataset (default: MUTAG)")
-parser.add_argument("--N_SPLITS", type=int, default=10, help="number of folds dataset is split into")
+parser.add_argument("--FOLDS", type=int, default=10, help="number of folds dataset is split into")
 parser.add_argument("--REPS", type=int, default=1, help="number of total repetitions")
 parser.add_argument("--EPOCHS", type=int, default=1000, help="number of epochs to train each trial of fold")
 parser.add_argument("--PATIENCE", type=int, default=100, help="patience for early stopping monitoring val_acc")
 parser.add_argument("--TRIALS", type=int, default=8, help="number of trials for hyperparameter optimization")
-parser.add_argument("--STARTING_REP", type=int, default=0, help="from which repetition to start (default: 0)")
-parser.add_argument("--STARTING_FOLD", type=int, default=0, help="from which fold to start (default: 0)")
+parser.add_argument("--START_REP", type=int, default=0, help="from which repetition to start (default: 0)")
+parser.add_argument("--STOP_REP", type=int, default=None, help="at which repetition to stop (default: None)")
+parser.add_argument("--START_FOLD", type=int, default=0, help="from which fold to start (default: 0)")
+parser.add_argument("--STOP_FOLD", type=int, default=None, help="at which fold to stop (default: None)")
 parser.add_argument("--MAIN_DIR", type=str, default="/Users/johanna/PycharmProjects/",
                     help="main directory of project, where logs are saved")
 parser.add_argument("--PARENT_DIR", type=str, default=None,
@@ -53,7 +55,6 @@ if args.PARENT_DIR is not None and not os.path.isdir(args.PARENT_DIR):
     raise ValueError("Invalid directory, should be of format: "
                      "'/Users/johanna/PycharmProjects/logs/GIN_NCI1_reps_2_folds_5_epochs_100_2023-04-26_09-00' ")
 
-
 if __name__ == "__main__":
     # Check for CUDA system support and use GPU if available otherwise run on CPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -61,28 +62,29 @@ if __name__ == "__main__":
     # Experiment Setup
     experiment = args.EXPERIMENT
     model = args.MODEL
-    dataset_type = "chemical" if args.DATASET in [ "MUTAG", "NCI1", "PROTEINS"] \
+    dataset_type = "chemical" if args.DATASET in ["MUTAG", "NCI1", "PROTEINS"] \
         else "social" if args.DATASET in ["COLLAB", "IMDB-BINARY"] else None
 
     # Log folder with current timestamp
     now = datetime.datetime.now(pytz.timezone("Europe/Zurich")).strftime("%Y-%m-%d_%H-%M")
     experiment_short = "WithoutNF" if args.EXPERIMENT == "without_node_features" else "WithNF"
 
-    parent_dir_info = f"{model}_{args.DATASET}_{experiment_short}_reps_{args.REPS}_folds_{args.N_SPLITS}" \
+    parent_dir_info = f"{model}_{args.DATASET}_{experiment_short}_reps_{args.REPS}_folds_{args.FOLDS}" \
                       f"_epochs_{args.EPOCHS}_pat_{args.PATIENCE}_{now}"
     parent_dir = create_parent_dir(parent_dir=args.PARENT_DIR, parent_dir_info=parent_dir_info, main_dir=args.MAIN_DIR)
 
     overall_performances = []
 
     # Experiment Loop
-    for r in range(args.STARTING_REP, args.REPS):
+    for r in range(args.START_REP, args.REPS if args.STOP_REP is None else args.STOP_REP):
         seed = r + 1  # Set a new seed for each repetition
         datamodule = GraphDataModule(dataset_name=args.DATASET, dataset_type=dataset_type,
                                      experiment=experiment, seed=seed)
         datamodule.prepare_data()
         fold_performances = []
 
-        for fold in range(args.STARTING_FOLD if r == args.STARTING_REP else 0, args.N_SPLITS):
+        for fold in range(args.START_FOLD if r == args.START_REP else 0, args.FOLDS if args.STOP_FOLD is None
+        else args.STOP_FOLD):
             # Create sub folder per fold of repetition
             log_dir = create_sub_dir(parent_dir=parent_dir, repetition_index=r, fold_index=fold)
             # Create a new study object for each fold
@@ -123,7 +125,7 @@ if __name__ == "__main__":
 
         # Save test accuracies, average performance, and overall average performance after all folds are done
         for fold, test_acc in enumerate(fold_performances):
-            if fold == args.N_SPLITS - 1:
+            if fold == args.FOLDS - 1:
                 save_test_results(log_dir=parent_dir, repetition_index=r, fold_index=fold,
                                   test_acc=test_acc, avg_performance=avg_performance, overall_avg_performance=None)
             else:
