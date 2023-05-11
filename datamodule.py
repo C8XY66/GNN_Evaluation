@@ -44,7 +44,7 @@ class GraphDataModule(pl.LightningDataModule):
                                  pre_transform=T.OneHotDegree(500) if self.dataset_type == "social" else None)
 
         # Node neutralisation
-        if self.experiment == "without_node_features":
+        if self.experiment == "WithoutNF":
             neutralized_data_list = [self.neutralize_node_features(data) for data in self.dataset]
             self.dataset = CustomInMemoryDataset(neutralized_data_list)
 
