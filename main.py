@@ -33,7 +33,7 @@ parser.add_argument("--FOLDS", type=int, default=10, help="number of folds datas
 parser.add_argument("--REPS", type=int, default=10, help="number of total repetitions")
 parser.add_argument("--EPOCHS", type=int, default=1000, help="number of epochs to train each trial of fold")
 parser.add_argument("--PATIENCE", type=int, default=100, help="patience for early stopping monitoring val_acc")
-parser.add_argument("--TRIALS", type=int, default=8, help="number of trials for hyperparameter optimization")
+parser.add_argument("--TRIALS", type=int, default=8, help="number of trials for hyperparameter optimization (default:8)")
 
 parser.add_argument("--START_REP", type=int, default=0, help="from which repetition to start (default: 0)")
 parser.add_argument("--STOP_REP", type=int, default=None, help="at which repetition to stop (default: None)")
@@ -100,7 +100,7 @@ if __name__ == "__main__":
             log_dir = create_sub_dir(parent_dir=parent_dir, repetition_index=r, fold_index=fold)
             # Create a new study object for each fold
             study = optuna.create_study(direction="maximize",
-                                        pruner=optuna.pruners.MedianPruner(n_startup_trials=50),
+                                        pruner=optuna.pruners.MedianPruner(n_startup_trials=4, n_warmup_steps=50),
                                         sampler=optuna.samplers.TPESampler(seed=42),
                                         study_name=f"rep_{r}_fold_{fold}"
                                         )
