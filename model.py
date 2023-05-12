@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 
 # GIN Model
 class GINModel(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, dropout: float, num_layers: int = 5):
+    def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, num_layers: int, dropout: float):
         super().__init__()
 
         self.gnn = GIN(in_channels=in_channels, hidden_channels=hidden_channels, num_layers=num_layers,
@@ -60,7 +60,7 @@ class DGCNNConv(MessagePassing):
 
 
 class DGCNNModel(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, hidden_channels=32, num_layers=4, dropout=0.5):
+    def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, num_layers: int, dropout: float):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
         self.layers = nn.ModuleList()
