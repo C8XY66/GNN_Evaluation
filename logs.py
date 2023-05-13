@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 from filelock import FileLock
+import sqlite3
 
 
 def create_parent_dir(parent_dir, parent_dir_info, main_dir):
@@ -25,43 +26,31 @@ def create_sub_dir(parent_dir, repetition_index, fold_index):
     return sub_dir
 
 
-def save_test_results(log_dir, repetition_index, fold_index, test_acc, num_folds, num_reps):
-    # Create an Excel file to log the test accuracies
-    file_path = os.path.join(log_dir, "test_accuracies.xlsx")
-    lock_path = os.path.join(log_dir, "test_accuracies.lock")
+def save_test_results(log_dir, repetition_index, fold_index, test_acc, model, dataset, experiment):
+    # Create a SQLite database to log the test accuracies
+    file_name = f"{model}_{dataset}_{experiment}_test_accuracies.db"
+    db_path = os.path.join(log_dir, file_name)
+    lock_path = os.path.join(log_dir, "db.lock")
 
     with FileLock(lock_path):
-        if not os.path.exists(file_path):
-            columns = ["rep", "fold", "test_acc_fold", "avg_perf_rep",
-                       "std_dev_rep", "avg_perf_overall", "std_dev_overall"]
-            df = pd.DataFrame(columns=columns)
-            # Pre-populate the repetition and fold fields
-            for rep in range(num_reps):
-                for fld in range(num_folds):
-                    new_row = pd.DataFrame({"rep": [rep], "fold": [fld],
-                                            "test_acc_fold": [np.nan],
-                                            "avg_perf_rep": [np.nan],
-                                            "std_dev_rep": [np.nan],
-                                            "avg_perf_overall": [np.nan],
-                                            "std_dev_overall": [np.nan]})
-                    df = pd.concat([df, new_row], ignore_index=True)
-        else:
-            df = pd.read_excel(file_path, engine='openpyxl')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
 
-        df.loc[(df['rep'] == repetition_index) & (df['fold'] == fold_index), 'test_acc_fold'] = test_acc
+        # Create table if it doesn't exist
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS results
+        (rep INTEGER, fold INTEGER, test_acc_fold REAL)
+        ''')
+        conn.commit()
 
-        # Calculate the average performance and standard deviation for the repetition
-        rep_df = df.loc[df['rep'] == repetition_index]
-        avg_performance = rep_df['test_acc_fold'].dropna().mean()
-        std_dev_performance = rep_df['test_acc_fold'].dropna().std(ddof=1)
-        df.loc[(df['rep'] == repetition_index) & (df['fold'] == num_folds - 1),
-        ['avg_perf_rep', 'std_dev_rep']] = avg_performance, std_dev_performance
+        # Insert or update the test_acc_fold
+        cursor.execute('''
+        INSERT INTO results
+        (rep, fold, test_acc_fold)
+        VALUES (?, ?, ?)
+        ''', (repetition_index, fold_index, test_acc))
+        conn.commit()
 
-        # Calculate the overall average performance and standard deviation
-        overall_avg_performance = df['test_acc_fold'].dropna().mean()
-        overall_std_dev_performance = df['test_acc_fold'].dropna().std(ddof=1)
-        df.loc[(df['rep'] == num_reps - 1) & (df['fold'] == num_folds - 1),
-        ['avg_perf_overall', 'std_dev_overall']] = overall_avg_performance, overall_std_dev_performance
+        conn.close()
 
-        df.to_excel(file_path, index=False, engine='openpyxl')
 
