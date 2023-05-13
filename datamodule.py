@@ -25,20 +25,19 @@ class CustomInMemoryDataset(InMemoryDataset):
 
 class GraphDataModule(pl.LightningDataModule):
     def __init__(self, dataset_name: str, dataset_type: str, experiment: str,
-                 n_splits=10, fold=0, seed=None):
+                 n_splits: int, seed_rep=None):
         super().__init__()
 
         self.dataset_name = dataset_name
         self.dataset_type = dataset_type
         self.experiment = experiment
         self.n_splits = n_splits
-        self.fold = fold
-        self.seed = seed
+        self.seed_rep = seed_rep
 
     def prepare_data(self):
-        if self.seed is not None:
-            torch.manual_seed(self.seed)
-            np.random.seed(self.seed)
+        if self.seed_rep is not None:
+            torch.manual_seed(self.seed_rep)
+            np.random.seed(self.seed_rep)
 
         self.dataset = TUDataset(root="data/TUDataset", name=self.dataset_name,
                                  pre_transform=T.OneHotDegree(500) if self.dataset_type == "social" else None)
@@ -49,7 +48,7 @@ class GraphDataModule(pl.LightningDataModule):
             self.dataset = CustomInMemoryDataset(neutralized_data_list)
 
         # Shuffle dataset based on seed
-        indices = torch.randperm(len(self.dataset), generator=torch.Generator().manual_seed(self.seed))
+        indices = torch.randperm(len(self.dataset), generator=torch.Generator().manual_seed(self.seed_rep))
         shuffled_data_list = [self.dataset[i] for i in indices]
         self.dataset = CustomInMemoryDataset(shuffled_data_list)
 
@@ -62,15 +61,15 @@ class GraphDataModule(pl.LightningDataModule):
         if stage is not None:
             return
 
-        self.fold = fold
+        seed_fold = fold + 1
 
-        train_indices, test_indices = self.splits[self.fold]
+        train_indices, test_indices = self.splits[fold]
         train_dataset = [self.dataset[i] for i in train_indices]
 
         num_val = int(len(train_dataset) * 0.1)
         num_train = len(train_dataset) - num_val
 
-        generator = torch.Generator().manual_seed(self.seed)
+        generator = torch.Generator().manual_seed(seed_fold)
         self.train_dataset, self.val_dataset = torch.utils.data.random_split(train_dataset, [num_train, num_val],
                                                                              generator=generator)
         self.test_dataset = [self.dataset[i] for i in test_indices]
