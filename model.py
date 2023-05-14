@@ -10,7 +10,7 @@ import pytorch_lightning as pl
 # MLP used in GIN Model
 class GINMLPModel(nn.Module):
     def __init__(self, in_channels, out_channels):
-        super(self).__init__()
+        super().__init__()
         self.mlp = nn.Sequential(
             nn.Linear(in_features=in_channels, out_features=out_channels),
             nn.BatchNorm1d(num_features=out_channels), nn.ReLU(),
@@ -28,7 +28,7 @@ class GINMLPModel(nn.Module):
 class GINModel(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, num_layers: int, dropout: float,
                  train_eps: bool):
-        super(GINModel, self).__init__()
+        super().__init__()
         self.dropout = nn.Dropout(dropout)
         self.layers = nn.ModuleList()
 
@@ -52,21 +52,20 @@ class GINModel(nn.Module):
         self.fc1 = nn.Linear(in_features=num_layers * hidden_channels, out_features=hidden_channels)
         self.fc2 = nn.Linear(in_features=hidden_channels, out_features=out_channels)
 
+    def forward(self, x, edge_index, batch):
+        summed_layer_outputs = []
+        for i in range(0, len(self.layers), 2):  # 2 because GINConv and BatchNorm come in pairs
+            x = self.layers[i](x, edge_index)
+            if i + 1 < len(self.layers):  # Check if last layer
+                x = F.relu(self.layers[i + 1](x))  # BatchNorm layer
+            summed_layer_outputs.append(global_add_pool(x, batch))
 
-def forward(self, x, edge_index, batch):
-    summed_layer_outputs = []
-    for i in range(0, len(self.layers), 2):  # 2 because GINConv and BatchNorm come in pairs
-        x = self.layers[i](x, edge_index)
-        if i + 1 < len(self.layers):  # Check if last layer
-            x = F.relu(self.layers[i + 1](x))  # BatchNorm layer
-        summed_layer_outputs.append(global_add_pool(x, batch))
+        x = torch.cat(summed_layer_outputs, dim=-1)  # concatenated sums
 
-    x = torch.cat(summed_layer_outputs, dim=-1)  # concatenated sums
-
-    x = F.relu(self.fc1(x))
-    x = self.dropout(x)
-    x = self.fc2(x)
-    return x
+        x = F.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = self.fc2(x)
+        return x
 
 
 # DGCNN Model
@@ -75,7 +74,7 @@ class DGCNNConv(MessagePassing):
     Class Copied from https://github.com/diningphil/gnn-comparison/blob/master/models/graph_classifiers/DGCNN.py
     """
     def __init__(self, in_channels, out_channels):
-        super(DGCNNConv, self).__init__(aggr='add')  # "Add" aggregation.
+        super().__init__(aggr='add')  # "Add" aggregation.
         self.lin = nn.Linear(in_channels, out_channels)
 
     def forward(self, x, edge_index):
