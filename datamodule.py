@@ -86,6 +86,14 @@ class GraphDataModule(pl.LightningDataModule):
     def test_dataloader(self):
         return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
 
+    def calculate_k(self):
+        # Compute number of nodes for graphs in dataset, sort them and find index that splits list at 60% percentile
+        node_counts = [data.num_nodes for data in self.dataset]
+        node_counts.sort()
+        index = int(len(node_counts) * 0.6)
+        k = node_counts[index]
+        return k
+
     @staticmethod
     def neutralize_node_features(data):
         num_nodes = data.x.size(0)
