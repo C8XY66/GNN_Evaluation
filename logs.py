@@ -1,6 +1,5 @@
 import os
-import pandas as pd
-import numpy as np
+import glob
 from filelock import FileLock
 import sqlite3
 
@@ -26,7 +25,15 @@ def create_sub_dir(parent_dir, repetition_index, fold_index):
     return sub_dir
 
 
-def save_test_results(log_dir, repetition_index, fold_index, test_acc, model, dataset, experiment):
+def delete_other_checkpoints(log_dir, best_trial_number):
+    # Delete all trial checkpoints but the best
+    checkpoint_files = glob.glob(os.path.join(log_dir, "checkpoints", "*.ckpt"))
+    for file in checkpoint_files:
+        if f"model_trial_{best_trial_number}" not in file:
+            os.remove(file)
+
+
+def save_test_results(log_dir, repetition_index, fold_index, test_acc, best_val_acc, model, dataset, experiment):
     # Create a SQLite database to log the test accuracies
     file_name = f"{model}_{dataset}_{experiment}_test_accuracies.db"
     db_path = os.path.join(log_dir, file_name)
@@ -39,16 +46,16 @@ def save_test_results(log_dir, repetition_index, fold_index, test_acc, model, da
         # Create table if it doesn't exist
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS results
-        (rep INTEGER, fold INTEGER, test_acc_fold REAL)
+        (rep INTEGER, fold INTEGER, test_acc_fold REAL, best_val_acc REAL)
         ''')
         conn.commit()
 
         # Insert or update the test_acc_fold
         cursor.execute('''
         INSERT INTO results
-        (rep, fold, test_acc_fold)
-        VALUES (?, ?, ?)
-        ''', (repetition_index, fold_index, test_acc))
+        (rep, fold, test_acc_fold, best_val_acc)
+        VALUES (?, ?, ?, ?)
+        ''', (repetition_index, fold_index, test_acc, best_val_acc))
         conn.commit()
 
         conn.close()
