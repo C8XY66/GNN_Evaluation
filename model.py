@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 
 # MLP used in GIN Model
 class GINMLPModel(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
         self.mlp = nn.Sequential(
             nn.Linear(in_features=in_channels, out_features=out_channels),
@@ -71,9 +71,9 @@ class GINModel(nn.Module):
 # DGCNN Model
 class DGCNNConv(MessagePassing):
     """
-    Class Copied from https://github.com/diningphil/gnn-comparison/blob/master/models/graph_classifiers/DGCNN.py
+    Copied from https://github.com/diningphil/gnn-comparison/blob/master/models/graph_classifiers/DGCNN.py
     """
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels: int, out_channels: int):
         super().__init__(aggr='add')  # "Add" aggregation.
         self.lin = nn.Linear(in_channels, out_channels)
 
@@ -131,9 +131,8 @@ class DGCNNModel(nn.Module):
         self.max_pool = nn.MaxPool1d(kernel_size=2, stride=2)
         self.conv1D_2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=5, stride=1)
 
-        dense_input_dim = (int(self.k / 2) - 4) * 32  # See details of calculation in thesis
-
         # DENSE LAYER
+        dense_input_dim = (int(self.k / 2) - 4) * 32  # See details of calculation in thesis
         self.fc1 = nn.Linear(in_features=dense_input_dim, out_features=128)
         self.fc2 = nn.Linear(in_features=128, out_features=out_channels)
 
@@ -151,14 +150,14 @@ class DGCNNModel(nn.Module):
             padding = torch.zeros((x.size(0), padding_size), device=x.device)
             x = torch.cat((x, padding), dim=1)
 
-        x = torch.unsqueeze(x, dim=1)  # Add a channels dimension
+        x = torch.unsqueeze(x, dim=1)  # Add a channels dimension for 1-D convolution
 
         # 1-D convolution, in x:[batch_size, channels=1, padded_k]
         x = F.relu(self.conv1D_1(x))
         x = self.max_pool(x)
         x = F.relu(self.conv1D_2(x))  # out x:[batch_size, channels_c_last=32, length_c_last=5]
 
-        x = x.view(x.size(0), -1)  # Flatten
+        x = x.view(x.size(0), -1)  # Flatten for dense layer
 
         # Dense layer, x:[batch_size, (channels_c_last * length_c_last)=160]
         x = F.relu(self.fc1(x))
@@ -167,10 +166,13 @@ class DGCNNModel(nn.Module):
         return x
 
 
-# MLP Classifiers adapted from MolecularFingerprint and DeepMultisets
-# https://github.com/diningphil/gnn-comparison/tree/master/models/graph_classifiers
+# MLP Classifiers
 class MLPModel(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, hidden_channels, dataset_type):
+    """
+    Adapted from MolecularFingerprint and DeepMultisets
+    https://github.com/diningphil/gnn-comparison/blob/master/models/graph_classifiers/DGCNN.py
+    """
+    def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, dataset_type: str):
         super().__init__()
 
         self.model_type = dataset_type
@@ -188,7 +190,7 @@ class MLPModel(torch.nn.Module):
             return self.mlp(global_add_pool(x, batch))
         elif self.model_type == "social":
             x = F.relu(self.fc_vertex(x))
-            x = global_add_pool(x, batch)  # sums all vertex embeddings belonging to the same graph!
+            x = global_add_pool(x, batch)
             x = F.relu(self.fc_global1(x))
             x = self.fc_global2(x)
             return x
@@ -196,9 +198,9 @@ class MLPModel(torch.nn.Module):
 
 # General GNN
 class GNNModel(pl.LightningModule):
-    def __init__(self, gnn_model_name, dataset_type: str, in_channels: int, out_channels: int, hidden_channels: int,
-                 num_layers: int, learning_rate: float, dropout: float,  weight_decay: float,  gin_train_eps: bool,
-                 dgcnn_k: int):
+    def __init__(self, gnn_model_name: str, dataset_type: str, in_channels: int, out_channels: int,
+                 hidden_channels: int, num_layers: int, learning_rate: float, dropout: float,  weight_decay: float,
+                 gin_train_eps: bool, dgcnn_k: int):
         super().__init__()
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
@@ -247,7 +249,7 @@ class GNNModel(pl.LightningModule):
         self.log("test_acc", self.test_acc)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), self.learning_rate, weight_decay=self.weight_decay)
+        optimizer = torch.optim.Adam(params=self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
 
         if self.gnn_model_name == "GIN":
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
