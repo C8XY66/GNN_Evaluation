@@ -71,7 +71,8 @@ These are implementations of the GIN, DGCNN, and MLP (baseline) models for graph
 This is a PyTorch Lightning wrapper around the GNN models. It defines the forward function, the loss function, the optimizer, and the training/validation/test steps.
 * **LightningDataModule (GraphDataModule):** 
 This PyTorch Lightning class manages the data loading and processing pipeline. It handles operations such as data preparation, setup for different stages, and defines the data loaders.
-* **Optuna Study and Trial Objects:** The objective function leverages Optuna for hyperparameter optimization. It creates a study object to conduct the optimization and trial objects for each trial in the study. This function also includes the logic for hyperparameter selection and returns the objective value for a given hyperparameter combination.
+* **Optuna Study and Trial Objects:** The Study optimises hyperparameters based on an objective function. Every Trial is one execution of the objective function, which returns the validation accuracy for a hyperparameter configuration.
+
 * **Trainer:** A PyTorch Lightning trainer with early stopping, trial pruning and model checkpoint callbacks and a TensorBoardLogger. The callbacks monitor validation accuracy and loss. 
 * **SQLite Database:** The final test accuracies are saved to a SQLite Database with a lock preventing simultaneous write operations.
 
