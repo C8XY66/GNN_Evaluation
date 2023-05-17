@@ -3,26 +3,25 @@ from model import GNNModel
 import os
 import yaml
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, Callback
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
 from optuna.integration import PyTorchLightningPruningCallback
 
 
-def load_config(config_file):
+def load_config_file(model_name):
+    config_file = f"config_{model_name}.yaml"
     with open(config_file, "r") as file:
         config = yaml.safe_load(file)
     return config
 
 
-def create_trainer(log_dir, epochs, patience=None, pruning_callback=None, testing=False, trial=None):
+def create_trainer(log_dir, epochs, patience=None, testing=False, trial=None):
     callbacks = []
-    logger = TensorBoardLogger(save_dir=log_dir)
-    if not testing:
 
+    if not testing:
         # Training Callbacks
         early_stopping = EarlyStopping(monitor="val_loss", mode="min", patience=patience, verbose=True)
-        callbacks.append(early_stopping)
-
+        trial_pruning = PyTorchLightningPruningCallback(trial=trial, monitor="val_acc")
         model_checkpoint = ModelCheckpoint(dirpath=os.path.join(log_dir, "checkpoints"),
                                            filename=f"model_trial_{trial.number}",
                                            save_top_k=1,
@@ -30,16 +29,13 @@ def create_trainer(log_dir, epochs, patience=None, pruning_callback=None, testin
                                            mode="max",
                                            auto_insert_metric_name=True,
                                            verbose=True)
-        callbacks.append(model_checkpoint)
-
-        if pruning_callback is not None:
-            callbacks.append(pruning_callback)
+        callbacks.extend([early_stopping, model_checkpoint, trial_pruning])
 
     # Create trainer
     trainer = pl.Trainer(
         callbacks=callbacks,
         max_epochs=epochs,
-        logger=logger,
+        logger=TensorBoardLogger(save_dir=log_dir),
         enable_progress_bar=False,
         enable_model_summary=False,
     )
@@ -47,9 +43,8 @@ def create_trainer(log_dir, epochs, patience=None, pruning_callback=None, testin
     return trainer
 
 
-def objective(trial, datamodule, log_dir, epochs, patience, model_name, dataset_type, dgcnn_k):
-    config_file = f"config_{model_name}.yaml"
-    config = load_config(config_file=config_file)
+def objective(trial, datamodule, log_dir, epochs, patience, model_name, dataset_type):
+    config = load_config_file(model_name=model_name)
 
     # OPTIMISE HYPERPARAMETERS
     # Set default values
@@ -59,15 +54,13 @@ def objective(trial, datamodule, log_dir, epochs, patience, model_name, dataset_
                        "learning_rate": 0.0,
                        "dropout": 0.0,
                        "weight_decay": 0.0,
-                       "gin_train_eps": False,
-                       "dgcnn_k": 0}
+                       "gin_train_eps": False}
+
+    dgcnn_k = datamodule.calculate_k() if model_name == "DGCNN" else 0
 
     # Check config file for values, and choose hyperparameter combination
     for param, values in config.items():
-        if isinstance(values, list):
-            hyperparameters[param] = trial.suggest_categorical(param, values)
-        else:
-            hyperparameters[param] = values
+        hyperparameters[param] = trial.suggest_categorical(param, values)
 
         # Pass hyperparameters to Model and DataModule
         datamodule.update_batch_size(hyperparameters["batch_size"])
@@ -83,13 +76,7 @@ def objective(trial, datamodule, log_dir, epochs, patience, model_name, dataset_
                          gin_train_eps=hyperparameters["gin_train_eps"],
                          dgcnn_k=dgcnn_k)
     # TRAINING
-    pruning_callback = PyTorchLightningPruningCallback(trial=trial, monitor="val_acc")
-    trainer = create_trainer(log_dir=log_dir, epochs=epochs, patience=patience,
-                             pruning_callback=pruning_callback, trial=trial)
-
-    hyperparameters = dict(hidden_channels=hyperparameters["hidden_channels"], batch_size=hyperparameters["batch_size"],
-                           epochs=epochs, dropout=hyperparameters["dropout"],
-                           learning_rate=hyperparameters["learning_rate"])
+    trainer = create_trainer(log_dir=log_dir, epochs=epochs, patience=patience, trial=trial)
     trainer.logger.log_hyperparams(hyperparameters)
     trainer.fit(model=model, datamodule=datamodule)
 
