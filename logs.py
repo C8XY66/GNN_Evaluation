@@ -29,7 +29,8 @@ def delete_other_checkpoints(log_dir, best_trial_number):
     # Delete all trial checkpoints but the best
     checkpoint_files = glob.glob(os.path.join(log_dir, "checkpoints", "*.ckpt"))
     for file in checkpoint_files:
-        if f"model_trial_{best_trial_number}" not in file:
+        file_trial_number = int(file.split('_')[-1].split('.')[0])
+        if file_trial_number != best_trial_number:
             os.remove(file)
 
 
@@ -59,5 +60,3 @@ def save_test_results(log_dir, repetition_index, fold_index, test_acc, best_val_
         conn.commit()
 
         conn.close()
-
-
