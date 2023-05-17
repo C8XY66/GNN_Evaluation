@@ -1,7 +1,7 @@
 
 import numpy as np
 from typing import Optional
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, train_test_split
 
 import torch
 import torch_geometric.transforms as T
@@ -24,28 +24,26 @@ class CustomInMemoryDataset(InMemoryDataset):
 
 
 class GraphDataModule(pl.LightningDataModule):
-    def __init__(self, dataset_name: str, dataset_type: str, experiment: str,
-                 n_splits: int, seed_rep=None):
+    def __init__(self, dataset_name: str, dataset_type: str, experiment: str):
         super().__init__()
 
         self.dataset_name = dataset_name
         self.dataset_type = dataset_type
         self.experiment = experiment
-        self.n_splits = n_splits
-        self.seed_rep = seed_rep
 
     def prepare_data(self):
-        if self.seed_rep is not None:
-            torch.manual_seed(self.seed_rep)
-            np.random.seed(self.seed_rep)
-
         self.dataset = TUDataset(root="data/TUDataset", name=self.dataset_name,
                                  pre_transform=T.OneHotDegree(500) if self.dataset_type == "social" else None)
-
         # Node neutralisation
         if self.experiment == "WithoutNF":
             neutralized_data_list = [self.neutralize_node_features(data) for data in self.dataset]
             self.dataset = CustomInMemoryDataset(neutralized_data_list)
+
+    def setup_rep(self, rep: int, folds: int):
+        # Set seed
+        self.seed_rep = rep + 1
+        torch.manual_seed(self.seed_rep)
+        np.random.seed(self.seed_rep)
 
         # Shuffle dataset based on seed
         indices = torch.randperm(len(self.dataset), generator=torch.Generator().manual_seed(self.seed_rep))
@@ -54,25 +52,29 @@ class GraphDataModule(pl.LightningDataModule):
 
         # Create stratified folds using shuffled dataset
         y = [data.y.item() for data in shuffled_data_list]
-        self.skf = StratifiedKFold(n_splits=self.n_splits, shuffle=False)
+        self.skf = StratifiedKFold(n_splits=folds, shuffle=False)
         self.splits = list(self.skf.split(torch.zeros(len(y)), y))
 
     def setup(self, fold=None, stage: Optional[str] = None):
         if stage is not None:
             return
-
+        # Set seed
         seed_fold = fold + 1
-
+        # Get train and test set for fold
         train_indices, test_indices = self.splits[fold]
+        self.test_dataset = [self.dataset[i] for i in test_indices]
         train_dataset = [self.dataset[i] for i in train_indices]
 
-        num_val = int(len(train_dataset) * 0.1)
-        num_train = len(train_dataset) - num_val
-
-        generator = torch.Generator().manual_seed(seed_fold)
-        self.train_dataset, self.val_dataset = torch.utils.data.random_split(train_dataset, [num_train, num_val],
-                                                                             generator=generator)
-        self.test_dataset = [self.dataset[i] for i in test_indices]
+        # Create stratified train/val split from train set
+        train_labels = [data.y.item() for data in train_dataset]
+        train_indices, val_indices = train_test_split(
+            np.arange(len(train_dataset)),
+            test_size=0.1,
+            random_state=seed_fold,
+            stratify=train_labels
+        )
+        self.train_dataset = [train_dataset[i] for i in train_indices]
+        self.val_dataset = [train_dataset[i] for i in val_indices]
 
     def update_batch_size(self, batch_size):
         self.batch_size = batch_size
