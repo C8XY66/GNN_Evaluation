@@ -1,3 +1,9 @@
+model: MLP
+
+hidden_channels:
+  - 32
+  - 128
+  - 256
 batch_size:
   - 32
   - 128
@@ -5,14 +11,6 @@ learning_rate:
   - 0.1
   - 0.001
   - 0.000001
-hidden_channels:
-  - 32
-  - 128
-  - 256
-num_layers:
-  - 1
-dropout:
-  - 0.0
 weight_decay:
   - 0.01
   - 0.001

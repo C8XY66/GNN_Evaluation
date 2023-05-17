@@ -1,3 +1,11 @@
+model: GIN
+
+num_layers:
+  - 5
+hidden_channels:
+  - 16
+  - 32
+  - 64
 batch_size:
   - 32
   - 128
@@ -6,12 +14,9 @@ learning_rate:
 dropout:
   - 0.5
   - 0.0
-hidden_channels:
-  - 16
-  - 32
-  - 64
-num_layers:
-  - 5
-weight_decay:
-  - 0.0
+gin_train_eps:
+  - True
+  - False
+
+
 
