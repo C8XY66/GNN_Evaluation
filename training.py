@@ -9,13 +9,31 @@ from optuna.integration import PyTorchLightningPruningCallback
 
 
 def load_config_file(model_name):
+    """
+    Load configuration file for a given model.
+    Args:
+        model_name (str): Name of the model for which to load the configuration.
+    Returns:
+        dict: Configuration parameters.
+    """
     config_file = f"config_{model_name}.yaml"
     with open(config_file, "r") as file:
         config = yaml.safe_load(file)
     return config
 
 
-def create_trainer(log_dir, epochs, patience=None, testing=False, trial=None):
+def create_trainer(log_dir, epochs, patience=None, trial=None, testing=False, ):
+    """
+    Creates a PyTorch Lightning trainer with callbacks for early stopping, trial pruning and model checkpointing.
+    Args:
+        log_dir (str): Path to the log directory.
+        epochs (int): Maximum number of training epochs.
+        patience (int, optional): Epochs to wait for improvement before training is stopped early. Default is None.
+        trial (optuna.trial.Trial, optional): Optuna trial for trial pruning during training. Default is None.
+        testing (bool, optional): Flag indicating if the trainer is used for testing (vs. training). Default is False.
+    Returns:
+        pl.Trainer: PyTorch Lightning trainer.
+    """
     callbacks = []
 
     if not testing:
@@ -44,6 +62,19 @@ def create_trainer(log_dir, epochs, patience=None, testing=False, trial=None):
 
 
 def objective(trial, datamodule, log_dir, epochs, patience, model_name, dataset_type):
+    """
+    Objective function for hyperparameter optimization.
+    Args:
+        trial (optuna.trial.Trial): Optuna trial object.
+        datamodule (PyTorchLightning.LightningDataModule): DataModule for handling graph data.
+        log_dir (str): Path to the log directory.
+        epochs (int): Maximum number of training epochs.
+        patience (int): Number of epochs with no improvement after which training will be stopped.
+        model_name (str): Name of the model for which to optimize hyperparameters.
+        dataset_type (str): Type of the dataset that is used (e.g. "chemical", "social").
+    Returns:
+        float: Validation accuracy, with a small amount added to break ties based on validation loss.
+    """
     config = load_config_file(model_name=model_name)
 
     # OPTIMISE HYPERPARAMETERS
@@ -70,8 +101,8 @@ def objective(trial, datamodule, log_dir, epochs, patience, model_name, dataset_
                          out_channels=datamodule.num_classes,
                          hidden_channels=hyperparameters["hidden_channels"],
                          num_layers=hyperparameters["num_layers"],
-                         learning_rate=hyperparameters["learning_rate"],
                          dropout=hyperparameters["dropout"],
+                         learning_rate=hyperparameters["learning_rate"],
                          weight_decay=hyperparameters["weight_decay"],
                          gin_train_eps=hyperparameters["gin_train_eps"],
                          dgcnn_k=dgcnn_k)

@@ -12,7 +12,7 @@ import optuna
 import logging
 import warnings
 
-# Enable warnings for troubleshooting
+# Disable user warnings (Enable for troubleshooting)
 logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -27,7 +27,7 @@ parser.add_argument("--DATASET", type=str, default="MUTAG", help="name of datase
 parser.add_argument("--FOLDS", type=int, default=10, help="number of folds dataset is split into")
 parser.add_argument("--REPS", type=int, default=10, help="number of total repetitions")
 parser.add_argument("--EPOCHS", type=int, default=1000, help="number of epochs to train each trial of fold")
-parser.add_argument("--PATIENCE", type=int, default=100, help="patience for early stopping monitoring val_acc")
+parser.add_argument("--PATIENCE", type=int, default=100, help="patience for early stopping monitoring val_loss")
 parser.add_argument("--TRIALS", type=int, default=50, help="number of trials for hyperparameter optimization "
                                                            "(default:50)")
 parser.add_argument("--START_REP", type=int, default=0, help="from which repetition to start (default: 0)")

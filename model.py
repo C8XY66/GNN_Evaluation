@@ -9,6 +9,9 @@ import pytorch_lightning as pl
 
 # MLP used in GIN Model
 class GINMLPModel(nn.Module):
+    """
+    This class defines a multilayer perceptron (MLP) used in the Graph Isomorphism Network (GIN) model.
+    """
     def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
         self.mlp = nn.Sequential(
@@ -26,6 +29,10 @@ class GINMLPModel(nn.Module):
 
 # GIN Model
 class GINModel(nn.Module):
+    """
+    This class defines the Graph Isomorphism Network (GIN) model.
+    It consists of several GIN convolutional layers and a final dense layer.
+    """
     def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, num_layers: int, dropout: float,
                  train_eps: bool):
         super().__init__()
@@ -71,6 +78,8 @@ class GINModel(nn.Module):
 # DGCNN Model
 class DGCNNConv(MessagePassing):
     """
+    This class defines the convolution operation used in the Deep Graph Convolutional Neural Network (DGCNN) model.
+    It extends the PyTorch Geometric MessagePassing class.
     Copied from https://github.com/diningphil/gnn-comparison/blob/master/models/graph_classifiers/DGCNN.py
     """
     def __init__(self, in_channels: int, out_channels: int):
@@ -102,6 +111,11 @@ class DGCNNConv(MessagePassing):
 
 
 class DGCNNModel(nn.Module):
+    """
+    This class defines the Deep Graph Convolutional Neural Network (DGCNN) model.
+    It consists of several DGCNN convolutional layers, a sort pool layer, 1D convolutional layers,
+    and a final dense layer.
+    """
     def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, num_layers: int, dropout: float,
                  k: int):
         super().__init__()
@@ -169,7 +183,9 @@ class DGCNNModel(nn.Module):
 # MLP Classifiers
 class MLPModel(torch.nn.Module):
     """
-    Adapted from MolecularFingerprint and DeepMultisets
+    This class defines a multilayer perceptron (MLP) model used as a structure agnostic baseline
+    for classification tasks. It supports both chemical and social datasets.
+    Adapted from MolecularFingerprint and DeepMultisets:
     https://github.com/diningphil/gnn-comparison/blob/master/models/graph_classifiers/DGCNN.py
     """
     def __init__(self, in_channels: int, out_channels: int, hidden_channels: int, dataset_type: str):
@@ -198,9 +214,29 @@ class MLPModel(torch.nn.Module):
 
 # General GNN
 class GNNModel(pl.LightningModule):
-    def __init__(self, gnn_model_name: str, dataset_type: str, in_channels: int, out_channels: int,
-                 hidden_channels: int, num_layers: int, learning_rate: float, dropout: float,  weight_decay: float,
-                 gin_train_eps: bool, dgcnn_k: int):
+    """
+    This class defines a general Graph Neural Network (GNN) model.
+    It supports the Graph Isomorphism Network (GIN), the Deep Graph Convolutional Neural Network (DGCNN),
+    and the Multilayer Perceptron (MLP) models.
+    """
+    def __init__(self, gnn_model_name: str, in_channels: int, out_channels: int,
+                 hidden_channels: int, num_layers: int, dropout: float, learning_rate: float,  weight_decay: float,
+                 gin_train_eps: bool, dgcnn_k: int, dataset_type: str):
+        """
+        Initialize the GNNModel.
+        Args:
+            gnn_model_name (str): The name of the specific GNN model to use.
+            in_channels (int): The number of input channels.
+            out_channels (int): The number of output channels.
+            hidden_channels (int): The number of hidden channels.
+            num_layers (int): The number of layers in the GNN.
+            dropout (float): The dropout rate for the model.
+            learning_rate (float): The learning rate for the optimizer.
+            weight_decay (float): The weight decay for the optimizer.
+            gin_train_eps (bool): If True, epsilon is trainable in the GIN model.
+            dgcnn_k (int): The 'k' parameter for the DGCNN model.
+            dataset_type (str): The type of dataset to use (e.g. "chemical, "social") for the MLP model.
+        """
         super().__init__()
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
@@ -222,10 +258,27 @@ class GNNModel(pl.LightningModule):
         self.test_acc = Accuracy(task="multiclass", num_classes=out_channels)
 
     def forward(self, x, edge_index, batch):
+        """
+        Defines the computation performed at every call.
+        Args:
+            x (Tensor): The input data.
+            edge_index (Tensor): The edge indices.
+            batch (Tensor): Batch size.
+        Returns:
+            Tensor: The output of the GNN.
+        """
         x = self.gnn(x, edge_index, batch)
         return x
 
     def training_step(self, data, batch_idx):
+        """
+        The training step of the GNN model.
+        Args:
+            data (Tensor): The input data.
+            batch_idx (int): The index of the current batch.
+        Returns:
+            Tensor: The training loss.
+        """
         y_hat = self(data.x, data.edge_index, data.batch)
         train_loss = F.cross_entropy(y_hat, data.y)
         self.train_acc(y_hat.softmax(dim=-1), data.y)
@@ -235,6 +288,12 @@ class GNNModel(pl.LightningModule):
         return train_loss
 
     def validation_step(self, data, batch_idx):
+        """
+        The validation step of the GNN model.
+        Args:
+            data (Tensor): The input data.
+            batch_idx (int): The index of the current batch.
+        """
         y_hat = self(data.x, data.edge_index, data.batch)
         val_loss = F.cross_entropy(y_hat, data.y)
         self.val_acc(y_hat.softmax(dim=-1), data.y)
@@ -242,6 +301,12 @@ class GNNModel(pl.LightningModule):
         self.log("val_acc", self.val_acc, on_step=False, on_epoch=True)
 
     def test_step(self, data, batch_idx):
+        """
+        The test step of the GNN model.
+        Args:
+            data (Tensor): The input data.
+            batch_idx (int): The index of the current batch.
+        """
         y_hat = self(data.x, data.edge_index, data.batch)
         test_loss = F.cross_entropy(y_hat, data.y)
         self.test_acc(y_hat.softmax(dim=-1), data.y)
@@ -249,6 +314,11 @@ class GNNModel(pl.LightningModule):
         self.log("test_acc", self.test_acc)
 
     def configure_optimizers(self):
+        """
+        Configure the optimizers for the GNN model.
+        Returns:
+            torch.optim.Optimizer: The optimizer for the model.
+        """
         optimizer = torch.optim.Adam(params=self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
 
         if self.gnn_model_name == "GIN":
@@ -258,4 +328,9 @@ class GNNModel(pl.LightningModule):
             return optimizer
 
     def on_save_checkpoint(self, checkpoint):
+        """
+        Custom function to be called when saving a model checkpoint.
+        Args:
+            checkpoint (dict): The checkpoint to be saved.
+        """
         checkpoint["init_args"] = self.hparams
