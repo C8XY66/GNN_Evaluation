@@ -44,6 +44,7 @@ class GraphDataModule(pl.LightningDataModule):
         self.dataset_name = dataset_name
         self.dataset_type = dataset_type
         self.experiment = experiment
+        self.pre_transform = None
 
     def prepare_data(self):
         """
@@ -51,9 +52,10 @@ class GraphDataModule(pl.LightningDataModule):
         Loads the TUDataset with an optional pre-transform applied if it's a "social" dataset.
         If the experiment is "WithoutNF", node features of the data are neutralized.
         """
-        self.dataset = TUDataset(root="data/TUDataset", name=self.dataset_name,
-                                 pre_transform=T.OneHotDegree(500) if self.dataset_type == "social" else None)
-                                 # (500 because of COLLAB, for IMDB-BINARY 135 suffices)
+        if self.dataset_type == "social" and self.experiment == "WithNF":
+            self.pre_transform = T.OneHotDegree(500)  # (500 because of COLLAB, for IMDB-BINARY 135 suffices)
+        self.dataset = TUDataset(root="data/TUDataset", name=self.dataset_name, pre_transform=self.pre_transform)
+
         # Node neutralisation
         if self.experiment == "WithoutNF":
             neutralized_data_list = [self.neutralize_node_features(data) for data in self.dataset]

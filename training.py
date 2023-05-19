@@ -93,19 +93,19 @@ def objective(trial, datamodule, log_dir, epochs, patience, model_name, dataset_
     for param, values in config.items():
         hyperparameters[param] = trial.suggest_categorical(param, values)
 
-        # Pass hyperparameters to Model and DataModule
-        datamodule.update_batch_size(hyperparameters["batch_size"])
-        model = GNNModel(gnn_model_name=model_name,
-                         dataset_type=dataset_type,
-                         in_channels=datamodule.num_node_features,
-                         out_channels=datamodule.num_classes,
-                         hidden_channels=hyperparameters["hidden_channels"],
-                         num_layers=hyperparameters["num_layers"],
-                         dropout=hyperparameters["dropout"],
-                         learning_rate=hyperparameters["learning_rate"],
-                         weight_decay=hyperparameters["weight_decay"],
-                         gin_train_eps=hyperparameters["gin_train_eps"],
-                         dgcnn_k=dgcnn_k)
+    # Pass hyperparameters to Model and DataModule
+    datamodule.update_batch_size(hyperparameters["batch_size"])
+    model = GNNModel(gnn_model_name=model_name,
+                     dataset_type=dataset_type,
+                     in_channels=datamodule.num_node_features,
+                     out_channels=datamodule.num_classes,
+                     hidden_channels=hyperparameters["hidden_channels"],
+                     num_layers=hyperparameters["num_layers"],
+                     dropout=hyperparameters["dropout"],
+                     learning_rate=hyperparameters["learning_rate"],
+                     weight_decay=hyperparameters["weight_decay"],
+                     gin_train_eps=hyperparameters["gin_train_eps"],
+                     dgcnn_k=dgcnn_k)
     # TRAINING
     trainer = create_trainer(log_dir=log_dir, epochs=epochs, patience=patience, trial=trial)
     trainer.logger.log_hyperparams(hyperparameters)
