@@ -1,4 +1,3 @@
-
 import numpy as np
 from typing import Optional
 from sklearn.model_selection import StratifiedKFold, train_test_split
@@ -44,7 +43,6 @@ class GraphDataModule(pl.LightningDataModule):
         self.dataset_name = dataset_name
         self.dataset_type = dataset_type
         self.experiment = experiment
-        self.pre_transform = None
 
     def prepare_data(self):
         """
@@ -52,8 +50,7 @@ class GraphDataModule(pl.LightningDataModule):
         Loads the TUDataset with an optional pre-transform applied if it's a "social" dataset.
         If the experiment is "WithoutNF", node features of the data are neutralized.
         """
-        if self.dataset_type == "social" and self.experiment == "WithNF":
-            self.pre_transform = T.OneHotDegree(500)  # (500 because of COLLAB, for IMDB-BINARY 135 suffices)
+        self.pre_transform = T.OneHotDegree(135) if self.dataset_type == "social" else None
         self.dataset = TUDataset(root="data/TUDataset", name=self.dataset_name, pre_transform=self.pre_transform)
 
         # Node neutralisation
