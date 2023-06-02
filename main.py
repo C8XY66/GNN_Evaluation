@@ -18,8 +18,8 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 # USER INPUTS
 parser = argparse.ArgumentParser()
-
-parser.add_argument("--MAIN_DIR", type=str, default="/Users/johanna/PycharmProjects/",
+# TODO: specify MAIN_DIR
+parser.add_argument("--MAIN_DIR", type=str, default="/Users/",
                     help="main directory of project, where logs are saved")
 
 parser.add_argument("--EXPERIMENT", type=str, default='WithNF',
@@ -54,10 +54,12 @@ if args.MODEL not in ["GIN", "DGCNN", "MLP"]:
 if args.DATASET not in ["MUTAG", "NCI1", "PROTEINS", "IMDB-BINARY", "IMDB-MULTI"]:
     raise ValueError("Dataset name must be one of the following: 'MUTAG', 'NCI1', 'PROTEINS', 'IMDB-BINARY', "
                      "'IMDB-MULTI'")
-if args.PARENT_DIR is not None and not os.path.isdir(args.PARENT_DIR):
-    raise ValueError("Invalid directory")
 if args.RUNNING_MODE not in ["single", "parallel"]:
     raise ValueError("Running mode must be one of the following: 'single', 'parallel'")
+if not os.path.isdir(args.MAIN_DIR):
+    raise ValueError("MAIN_DIR is an invalid directory")
+if args.PARENT_DIR is not None and not os.path.isdir(args.PARENT_DIR):
+    raise ValueError("PARENT_DIR is an invalid directory")
 
 
 if __name__ == "__main__":
